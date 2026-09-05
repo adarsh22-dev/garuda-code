@@ -26,7 +26,6 @@
     "cli": "tsx src/index.ts",
     "setup": "tsx src/index.ts providers setup",
     "link": "npm run build && npm link",
-    "prepare": "npm run build",
     "prepublishOnly": "npm run build && npm audit --omit=dev"
   },
   "engines": {

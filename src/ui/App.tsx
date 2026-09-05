@@ -9,6 +9,7 @@ import { BUILTIN_SKILLS } from "../skills/registry.js";
 
 const GOLD = "#D4A017"; // Garuda's golden feathers
 const INDIGO = "#2C3E7B"; // Vishnu's deep blue
+const GARUDA_MARK = "◆◢";
 
 interface LogEntry {
   kind: "user" | "assistant" | "tool" | "system";
@@ -257,6 +258,7 @@ export function App({
   return (
     <Box flexDirection="column" padding={1}>
       <Box borderStyle="round" borderColor={GOLD} paddingX={1} marginBottom={1}>
+        <Text color={GOLD} bold>{GARUDA_MARK} </Text>
         <Text color={GOLD} bold>
           GARUDA CODE{"  "}
         </Text>
