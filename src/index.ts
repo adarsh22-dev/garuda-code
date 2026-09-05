@@ -197,61 +197,143 @@ const providersCmd = program
   .description("List available providers and which have API keys configured.")
   .action(async () => {
     const cfg = await loadConfig();
-    console.log(chalk.bold("\nBuilt-in providers:"));
-    for (const p of PROVIDER_PRESETS) {
-      const hasKey = Boolean(process.env[p.envKey] || cfg.providerOverrides?.[p.id]?.apiKey);
-      const marker = hasKey ? chalk.green("✓") : chalk.gray("·");
-      const isDefault = p.id === cfg.defaultProvider ? chalk.yellow(" (default)") : "";
-      console.log(`  ${marker} ${p.id.padEnd(14)} ${p.label}${isDefault}`);
-    }
-    if (cfg.customProviders?.length) {
-      console.log(chalk.bold("\nCustom providers:"));
-      for (const p of cfg.customProviders) {
-        console.log(`  · ${p.id.padEnd(14)} ${p.label} (${p.baseUrl})`);
+
+    const isConfigured = (p: (typeof PROVIDER_PRESETS)[0]) =>
+      Boolean(process.env[p.envKey] || cfg.providerOverrides?.[p.id]?.apiKey);
+
+    const configured = PROVIDER_PRESETS.filter(isConfigured);
+    const available = PROVIDER_PRESETS.filter((p) => !isConfigured(p));
+
+    console.log(chalk.bold("\n  Configured providers:"));
+    if (configured.length) {
+      for (const p of configured) {
+        const isDefault = p.id === cfg.defaultProvider ? chalk.yellow(" (default)") : "";
+        console.log(`    ${chalk.green("*")} ${p.id.padEnd(16)} ${p.label}${isDefault}`);
       }
+    } else {
+      console.log(chalk.gray("    None. Run `garuda providers setup` to add keys."));
     }
-    console.log(chalk.gray("\nRun `garuda providers setup` to configure keys for all of these in one pass."));
-    console.log();
+
+    console.log(chalk.bold("\n  Available providers:"));
+    for (const p of available) {
+      console.log(`    ${chalk.gray("-")} ${p.id.padEnd(16)} ${chalk.gray(p.label)}`);
+    }
+
+    console.log(chalk.gray("\n  Commands:"));
+    console.log(chalk.gray("    garuda providers setup        Configure API keys"));
+    console.log(chalk.gray("    garuda config set-default     Set default provider"));
+    console.log(chalk.gray("    garuda config add-provider    Add custom provider\n"));
   });
 
 providersCmd
   .command("setup")
-  .description("Interactively walk through every built-in provider and save API keys that you have.")
-  .action(async () => {
+  .description("Walk through providers and save API keys that you have.")
+  .option("--all", "Show all providers including already-configured ones", false)
+  .action(async (opts) => {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     const ask = createPrompter(rl);
     const cfg = await loadConfig();
     cfg.providerOverrides = cfg.providerOverrides ?? {};
-    let configured = 0;
 
-    console.log(
-      chalk.bold(
-        `\nThis walks through all ${PROVIDER_PRESETS.length} built-in providers. Press Enter to skip any you don't use.\n`
-      )
-    );
+    const CATEGORY_LABELS: Record<string, string> = {
+      major: "Major Providers",
+      local: "Local (no key needed)",
+      cloud: "Cloud / API Providers",
+    };
 
-    for (const p of PROVIDER_PRESETS) {
-      const already = process.env[p.envKey] || cfg.providerOverrides[p.id]?.apiKey;
-      const status = already ? chalk.green(" (already configured)") : "";
-      const answer = await ask(`${chalk.yellow(p.id.padEnd(14))} ${p.label}${status} — API key [skip]: `);
-      if (answer) {
-        cfg.providerOverrides[p.id] = { ...cfg.providerOverrides[p.id], apiKey: answer };
-        configured++;
+    const PROVIDER_CATEGORIES: Record<string, string[]> = {
+      major: ["anthropic", "openai", "gemini", "groq", "deepseek", "mistral", "openrouter"],
+      local: ["ollama", "lmstudio", "atomicchat"],
+      cloud: ["together", "fireworks", "xai", "venice", "cerebras", "deepinfra", "moonshot", "huggingface", "dashscope", "nvidia", "minimax", "nebius"],
+    };
+
+    const categorized = new Set(Object.values(PROVIDER_CATEGORIES).flat());
+    const uncategorized = PROVIDER_PRESETS.filter((p) => !categorized.has(p.id));
+
+    const isConfigured = (id: string, envKey: string) =>
+      Boolean(process.env[envKey] || cfg.providerOverrides![id]?.apiKey);
+
+    const setupProviders = async (providers: typeof PROVIDER_PRESETS) => {
+      let count = 0;
+      for (const p of providers) {
+        const already = isConfigured(p.id, p.envKey);
+        if (already && !opts.all) continue;
+        const status = already ? chalk.green(" [configured]") : "";
+        const answer = await ask(`${chalk.yellow(p.id.padEnd(16))} ${p.label}${status}  API key (Enter to skip): `);
+        if (answer) {
+          cfg.providerOverrides![p.id] = { ...cfg.providerOverrides![p.id], apiKey: answer };
+          count++;
+        }
+      }
+      return count;
+    };
+
+    console.log(chalk.bold("\n  Garuda Provider Setup\n"));
+    console.log(chalk.gray("  Providers are grouped by category. Enter a number to configure that group."));
+    console.log(chalk.gray("  Press Enter without a number to finish.\n"));
+
+    const menuItems = [
+      ...Object.keys(PROVIDER_CATEGORIES).map((key) => ({ key, label: CATEGORY_LABELS[key] })),
+      ...(uncategorized.length ? [{ key: "other", label: `Other Providers (${uncategorized.length})` }] : []),
+      { key: "all", label: "All Providers" },
+      { key: "done", label: "Done" },
+    ];
+
+    let totalConfigured = 0;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      console.log(chalk.bold("  Categories:"));
+      menuItems.forEach((item, i) => {
+        const isDone = item.key === "done";
+        console.log(`    ${isDone ? chalk.green : chalk.yellow} ${i + 1}. ${item.label}`);
+      });
+
+      const choice = await ask(chalk.bold("\n  Select category (number or name): "));
+      if (!choice || choice.toLowerCase() === "done" || choice === String(menuItems.length)) {
+        break;
+      }
+
+      const idx = parseInt(choice, 10) - 1;
+      const selected = menuItems[idx];
+
+      if (!selected || selected.key === "done") break;
+
+      let providers: typeof PROVIDER_PRESETS;
+      if (selected.key === "all") {
+        providers = PROVIDER_PRESETS;
+      } else if (selected.key === "other") {
+        providers = uncategorized;
+      } else {
+        const ids = PROVIDER_CATEGORIES[selected.key] ?? [];
+        providers = PROVIDER_PRESETS.filter((p) => ids.includes(p.id));
+      }
+
+      console.log(chalk.gray(`\n  Configuring ${selected.label}...`));
+      console.log(chalk.gray("  Press Enter to skip any you don't have.\n"));
+      totalConfigured += await setupProviders(providers);
+      console.log();
+    }
+
+    rl.close();
+    await saveConfig(cfg);
+
+    console.log(chalk.bold("\n  Setup Complete\n"));
+    console.log(chalk.green(`  Saved keys for ${totalConfigured} provider(s).`));
+    console.log(chalk.gray(`  Config: ${getConfigDir()}/config.json\n`));
+
+    // Show configured providers summary
+    const configured = PROVIDER_PRESETS.filter((p) => isConfigured(p.id, p.envKey));
+    if (configured.length) {
+      console.log(chalk.bold("  Configured providers:"));
+      for (const p of configured) {
+        console.log(`    ${chalk.green("*")} ${p.id.padEnd(16)} ${p.label} ${chalk.gray(`(${p.defaultModel})`)}`);
       }
     }
-    rl.close();
 
-    await saveConfig(cfg);
-    console.log(chalk.green(`\nSaved keys for ${configured} provider(s) to ${getConfigDir()}/config.json.`));
-    console.log(
-      chalk.gray(
-        "Note: local providers (Ollama, LM Studio, Atomic Chat) need no key — just make sure the local server is running.\n" +
-          "Note: this covers key-based OpenAI-compatible/Anthropic providers only. OAuth-only providers (ChatGPT/Codex, " +
-          "GitHub Copilot, ClinePass, xAI OAuth, ChatGPT Plus login) and cloud-IAM providers (Bedrock, Vertex, Azure with " +
-          "deployment names) aren't supported by this wizard — Garuda doesn't implement those OAuth/IAM flows yet."
-      )
-    );
-    console.log(chalk.gray("Set a default with: garuda config set-default <providerId>"));
+    console.log(chalk.gray("\n  Next steps:"));
+    console.log(chalk.gray("    garuda config set-default <provider>   Set your default"));
+    console.log(chalk.gray("    garuda chat                            Start chatting\n"));
   });
 
 const configCmd = program.command("config").description("Manage Garuda configuration.");
