@@ -165,7 +165,7 @@ export function App({
           return;
         }
         if (command.name === "provider" || command.name === "model") {
-          const args = text.slice(command.name.length + 1).trim().split(/\s+/).filter(Boolean);
+          const args = text.slice((rawName?.length ?? 0) + 1).trim().split(/\s+/).filter(Boolean);
           if (!args.length) {
             setLog((l) => [...l, { kind: "system", text: command.name === "provider"
               ? `Active provider: ${activeProviderId}:${activeModel}\nAvailable: ${providerIds.join(", ") || activeProviderId}`

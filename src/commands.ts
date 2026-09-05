@@ -109,5 +109,12 @@ export const SLASH_COMMANDS: SlashCommand[] = slashCommandRows.map(([name, descr
 }));
 
 export function getSlashCommand(name: string): SlashCommand | undefined {
+  const aliases: Record<string, string> = {
+    p: "provider",
+    m: "model",
+    h: "help",
+    q: "exit",
+  };
+  name = aliases[name] ?? name;
   return SLASH_COMMANDS.find((command) => command.name === name);
 }

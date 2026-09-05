@@ -2,6 +2,8 @@
 
 Type `/` inside `garuda chat` to open the searchable command palette. Up/Down selects a command, Tab completes it, and Enter runs it.
 
+Common short aliases are supported: `/p` for `/provider`, `/m` for `/model`, `/h` for `/help`, and `/q` for `/exit`. For example, `/p openrouter` switches providers without requiring the full command name.
+
 ## Session and context
 
 `/clear`, `/compact`, `/context`, `/status`, `/sessions`, `/resume`, `/export`, `/copy`, `/continue`, `/session`, `/files`, `/ctx`, `/cost`, `/request-size`, `/cache-stats`, `/exit`
