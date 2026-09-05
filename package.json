@@ -3,6 +3,17 @@
   "version": "0.1.0",
   "description": "Garuda Code — a multi-provider, tool-using AI coding agent for the terminal.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adarsh22-dev/garuda-code.git"
+  },
+  "homepage": "https://github.com/adarsh22-dev/garuda-code",
+  "bugs": {
+    "url": "https://github.com/adarsh22-dev/garuda-code/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "garuda": "./dist/index.js"
   },
@@ -15,6 +26,7 @@
     "cli": "tsx src/index.ts",
     "setup": "tsx src/index.ts providers setup",
     "link": "npm run build && npm link",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build && npm audit --omit=dev"
   },
   "engines": {
