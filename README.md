@@ -96,6 +96,8 @@ garuda chat
 
 Read the complete [first-run guide](docs/first-run.md), [slash-command guide](docs/commands.md), and [roadmap](docs/roadmap.md).
 
+For compatibility and public-release provenance, see [docs/provenance.md](docs/provenance.md). Garuda can offer similar terminal workflows to other coding agents, but its source, TUI, commands, and branding are independently implemented.
+
 ## Usage
 
 ```bash
@@ -139,4 +141,4 @@ The provider layer normalizes every backend to one `Message`/`ContentBlock` sche
 
 ## Publishing and provenance
 
-The project is MIT-licensed and the Garuda source, command catalog, skills, and UI are original implementation work. The provider names and endpoint metadata are compatibility references; each provider remains subject to its own terms. Before publishing, run `npm run build` and `npm pack --dry-run`, review the package contents, and do not include `.env`, API keys, session data, or generated `dist` files that are not part of the intended release.
+The project is MIT-licensed and the Garuda source, command catalog, skills, and UI are original implementation work. The provider names and endpoint metadata are compatibility references; each provider remains subject to its own terms. Before publishing, run `npm run build` and `npm pack --dry-run`, review the package contents, and do not include `.env`, API keys, session data, or generated files that are not part of the intended release. See [docs/provenance.md](docs/provenance.md) for the asset and compatibility policy.

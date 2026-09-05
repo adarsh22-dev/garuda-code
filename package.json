@@ -1,6 +1,6 @@
 {
   "name": "garuda-code",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Garuda Code — a multi-provider, tool-using AI coding agent for the terminal.",
   "type": "module",
   "repository": {
