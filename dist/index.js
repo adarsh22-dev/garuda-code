@@ -12,6 +12,10 @@ import { AgentLoop } from "./agent/loop.js";
 import { ALL_TOOLS } from "./tools/index.js";
 import { loadMcpTools } from "./mcp/toolWrapper.js";
 import { createSession, loadSession, saveSession, listSessions } from "./session/session.js";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+const packageVersion = JSON.parse(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf-8")).version;
 async function resolveTools() {
     const cfg = await loadConfig();
     if (!cfg.mcpServers?.length)
@@ -34,7 +38,7 @@ const program = new Command();
 program
     .name("garuda")
     .description("Garuda Code — a multi-provider, tool-using AI coding agent for the terminal.")
-    .version("0.1.0");
+    .version(packageVersion);
 async function resolveProviderAndModel(opts) {
     const cfg = await loadConfig();
     const providerId = opts.provider ?? cfg.defaultProvider;
