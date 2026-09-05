@@ -13,7 +13,7 @@ This is a genuine, tested v1, not a stub. What's built and verified:
 - **Providers**: Anthropic (native Messages API) plus an OpenAI-compatible adapter, with a growing catalog of key-based providers and local endpoints. `garuda providers setup` walks through the catalog in one pass; `config add-provider` registers any other OpenAI-compatible endpoint without touching code.
 - **Tools** (all tested directly, see below): `bash`, `read_file`, `write_file`, `edit_file` (unique-string replace), `list_dir`, `glob`, `grep`, `git`
 - **MCP client**: stdio-transport JSON-RPC client (`initialize`, `tools/list`, `tools/call`), wired into the agent's tool list — verified live against the official `@modelcontextprotocol/server-filesystem` package (14 tools loaded, `read_file` round-tripped real file content through the agent's tool interface)
-- **TUI**: Ink-based chat interface, gold/indigo theme, confirmation prompts for mutating tools, Ctrl+C to quit, active session metadata, slash-command discovery, coding skills, and live token/context estimates
+- **TUI**: Ink-based chat interface, gold/indigo theme, confirmation prompts for mutating tools, active session metadata, navigable slash-command palette, coding skills, live token/context estimates, provider switching, and model discovery
 - **Token control**: Recent history is bounded by default to 40 messages. Use `/compact` in chat or `garuda config set-history <12-500>` to tune the limit.
 - **Skills**: `/debug`, `/security`, `/performance`, `/refactor`, `/test`, and `/document` provide focused coding workflows while preserving the normal agent tools and confirmations.
 - **Config**: `~/.garuda/config.json` for default provider, per-provider model/baseUrl overrides, custom providers, registered MCP servers
@@ -56,15 +56,25 @@ These need per-account config or an OAuth flow rather than a fixed API-key + bas
 - **`edit_file` requires an exact unique match** — no fuzzy matching, no diff-based patching yet.
 - **Session log replay in the TUI is text-only** — resuming a session repopulates the chat log with prior user/assistant text but doesn't replay tool-call/tool-result lines (they're in the saved history sent to the model, just not re-rendered in the UI).
 - **MCP tools default to requiring confirmation** — reasonable since they can do anything server-side, but there's no per-tool trust list yet, so `--yolo` is all-or-nothing.
-- Not published to npm. Local install only for now.
+## Install
 
-## Install (local)
+After the npm release is published:
 
 ```bash
+npm install --global garuda-code
+garuda --help
+garuda chat
+```
+
+The package exposes the `garuda` command and works in PowerShell, macOS/Linux terminals, and the VS Code integrated terminal. For the current GitHub source:
+
+```bash
+git clone https://github.com/adarsh22-dev/garuda-code.git
+cd garuda-code
 npm install
 npm run build
-npm run link      # builds and makes `garuda` available globally
-node dist/index.js chat
+npm link
+garuda chat
 ```
 
 On Windows, configure providers without entering a key for every provider:
@@ -75,8 +85,9 @@ garuda providers
 garuda chat
 ```
 
-`npm start` launches chat directly, so it needs a configured provider first. For a
-local Ollama setup, use `garuda config set-default ollama` before starting chat.
+`npm start` launches chat directly. For a local Ollama setup, use `garuda config set-default ollama` before starting chat.
+
+Read the complete [first-run guide](docs/first-run.md), [slash-command guide](docs/commands.md), and [roadmap](docs/roadmap.md).
 
 ## Usage
 
@@ -93,7 +104,7 @@ garuda config set-history 40         # cap retained conversation history
 
 Pass `--provider <id>` and `--model <name>` to override the default per-invocation. Pass `--yolo` to `chat` to skip confirmation prompts on mutating tools (bash, write_file, edit_file, git) — off by default for safety.
 
-Inside the TUI, `/provider` lists available providers, `/provider openrouter` switches providers, and `/model gpt-4o` changes the active model. If the default provider has no key, Garuda still opens the TUI so you can switch to a configured provider; a normal prompt before configuration returns the provider authentication error.
+Inside the TUI, type `/` to open the command palette. Use Up/Down to select, Tab to complete, and Enter to run. `/provider` lists available providers, `/provider openrouter` switches providers, `/models` discovers models, and `/model gpt-4o` changes the active model. If the default provider has no key, Garuda still opens the TUI so you can switch to a configured provider; a normal prompt before configuration returns the provider authentication error.
 
 ## Architecture
 

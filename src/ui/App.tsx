@@ -48,9 +48,11 @@ export function App({
   const [usage, setUsage] = useState({ inputTokens: 0, outputTokens: 0, estimatedContextTokens: 0 });
   const [activeProviderId, setActiveProviderId] = useState(providerId);
   const [activeModel, setActiveModel] = useState(model);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(0);
   const slashSuggestions = input.startsWith("/")
-    ? SLASH_COMMANDS.filter((command) => command.name.startsWith(input.slice(1).split(/\s/, 1)[0].toLowerCase())).slice(0, 8)
+    ? SLASH_COMMANDS.filter((command) => command.name.startsWith(input.slice(1).split(/\s/, 1)[0].toLowerCase()))
     : [];
+  const visibleSuggestions = slashSuggestions.slice(0, 16);
   const [log, setLog] = useState<LogEntry[]>(
     () =>
       (initialMessages ?? [])
@@ -95,8 +97,15 @@ export function App({
       return;
     }
     if (key.ctrl && inputChar === "c") exit();
-    if (key.tab && slashSuggestions.length === 1) {
-      setInput(`/${slashSuggestions[0].name} `);
+    if (key.upArrow && visibleSuggestions.length > 0) {
+      setSelectedSuggestion((index) => Math.max(0, index - 1));
+    }
+    if (key.downArrow && visibleSuggestions.length > 0) {
+      setSelectedSuggestion((index) => Math.min(visibleSuggestions.length - 1, index + 1));
+    }
+    if (key.tab && visibleSuggestions.length > 0) {
+      setInput(`/${visibleSuggestions[selectedSuggestion]?.name ?? visibleSuggestions[0].name} `);
+      setSelectedSuggestion(0);
     }
   });
 
@@ -276,12 +285,17 @@ export function App({
         <Box flexDirection="column" borderStyle="round" borderColor={busy ? "gray" : INDIGO} paddingX={1}>
           {slashSuggestions.length > 0 && (
             <Box flexDirection="column" marginBottom={1}>
-              {slashSuggestions.map((suggestion, index) => (
-                <Text key={suggestion.name} color={index === 0 ? GOLD : "gray"}>
-                  {index === 0 ? "› " : "  "}{`/${suggestion.name}`} <Text color="gray">{suggestion.description}</Text>
+              {visibleSuggestions.map((suggestion, index) => (
+                <Text key={suggestion.name} color={index === selectedSuggestion ? GOLD : "gray"}>
+                  {index === selectedSuggestion ? "› " : "  "}{`/${suggestion.name}`} <Text color="gray">{suggestion.description}</Text>
                 </Text>
               ))}
-              <Text color="gray">Tab completes the highlighted command</Text>
+              <Text color="gray">
+                {slashSuggestions.length > visibleSuggestions.length
+                  ? `Showing ${visibleSuggestions.length} of ${slashSuggestions.length}. Type to filter. `
+                  : `${slashSuggestions.length} command${slashSuggestions.length === 1 ? "" : "s"}. `}
+                Up/Down selects · Tab completes · Enter runs
+              </Text>
             </Box>
           )}
           <Box>

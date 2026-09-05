@@ -7,13 +7,15 @@
     "garuda": "./dist/index.js"
   },
   "main": "./dist/index.js",
+  "files": ["dist", "README.md", "LICENSE", "SECURITY.md", "docs"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "cli": "tsx src/index.ts",
     "setup": "tsx src/index.ts providers setup",
-    "link": "npm run build && npm link"
+    "link": "npm run build && npm link",
+    "prepublishOnly": "npm run build && npm audit --omit=dev"
   },
   "engines": {
     "node": ">=18"
