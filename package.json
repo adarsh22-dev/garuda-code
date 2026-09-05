@@ -1,6 +1,6 @@
 {
   "name": "garuda-code",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Garuda Code — a multi-provider, tool-using AI coding agent for the terminal.",
   "type": "module",
   "repository": {
@@ -15,10 +15,16 @@
     "access": "public"
   },
   "bin": {
-    "garuda": "./dist/index.js"
+    "garuda": "dist/index.js"
   },
   "main": "./dist/index.js",
-  "files": ["dist", "README.md", "LICENSE", "SECURITY.md", "docs"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "docs"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/index.ts",
@@ -31,7 +37,14 @@
   "engines": {
     "node": ">=18"
   },
-  "keywords": ["ai", "cli", "agent", "coding-assistant", "anthropic", "llm"],
+  "keywords": [
+    "ai",
+    "cli",
+    "agent",
+    "coding-assistant",
+    "anthropic",
+    "llm"
+  ],
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

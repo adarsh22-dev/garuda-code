@@ -4,7 +4,7 @@ A multi-provider, tool-using AI coding agent for the terminal — an open, from-
 
 Named for Garuda, Vishnu's mount in Hindu mythology: a fast, powerful bird — the intended feel of the agent.
 
-## What actually works right now (v0.1.0)
+## What actually works right now (v0.1.1)
 
 This is a genuine, tested v1, not a stub. What's built and verified:
 
