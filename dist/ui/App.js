@@ -7,10 +7,19 @@ import { BUILTIN_SKILLS } from "../skills/registry.js";
 const GOLD = "#D4A017"; // Garuda's golden feathers
 const INDIGO = "#2C3E7B"; // Vishnu's deep blue
 const GARUDA_MARK = "◆◢";
+const GARUDA_BANNER = [
+    "   ██████╗  █████╗ ██████╗ ██╗   ██╗██████╗  █████╗",
+    "  ██╔════╝ ██╔══██╗██╔══██╗██║   ██║██╔══██╗██╔══██╗",
+    "  ██║  ███╗███████║██████╔╝██║   ██║██║  ██║███████║",
+    "  ██║   ██║██╔══██║██╔══██╗██║   ██║██║  ██║██╔══██║",
+    "  ╚██████╔╝██║  ██║██║  ██║╚██████╔╝██████╔╝██║  ██║",
+    "   ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝",
+];
 export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, initialMessages, onHistoryChange, maxHistoryMessages = 40, providerIds = [], onProviderChange, }) {
     const { exit } = useApp();
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
+    const [workspaceTrusted, setWorkspaceTrusted] = useState(false);
     const [usage, setUsage] = useState({ inputTokens: 0, outputTokens: 0, estimatedContextTokens: 0 });
     const [activeProviderId, setActiveProviderId] = useState(providerId);
     const [activeModel, setActiveModel] = useState(model);
@@ -38,6 +47,15 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
         }),
     }));
     useInput((inputChar, key) => {
+        if (!workspaceTrusted) {
+            if (inputChar.toLowerCase() === "y" || inputChar === "1" || key.return) {
+                setWorkspaceTrusted(true);
+            }
+            else if (inputChar.toLowerCase() === "n" || inputChar === "2" || key.escape) {
+                exit();
+            }
+            return;
+        }
         if (pendingConfirm) {
             if (inputChar.toLowerCase() === "y") {
                 pendingConfirm.resolve(true);
@@ -213,12 +231,30 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
         }
     }, [activeModel, activeProviderId, agent, busy, exit, onProviderChange, providerIds]);
     return (React.createElement(Box, { flexDirection: "column", padding: 1 },
-        React.createElement(Box, { borderStyle: "round", borderColor: GOLD, paddingX: 1, marginBottom: 1 },
+        !workspaceTrusted ? (React.createElement(React.Fragment, null,
+            React.createElement(Box, { flexDirection: "column", marginBottom: 1 },
+                GARUDA_BANNER.map((line) => React.createElement(Text, { key: line, color: GOLD, bold: true }, line)),
+                React.createElement(Text, { color: "gray" }, `  ${GARUDA_MARK}  AI coding terminal for teams that ship.`)),
+            React.createElement(Box, { flexDirection: "column", borderStyle: "double", borderColor: GOLD, paddingX: 1, marginBottom: 1 },
+                React.createElement(Text, { color: GOLD, bold: true }, "GARUDA SESSION"),
+                React.createElement(Text, null,
+                    "Provider  ",
+                    React.createElement(Text, { color: GOLD }, activeProviderId)),
+                React.createElement(Text, null,
+                    "Model     ",
+                    React.createElement(Text, { color: GOLD }, activeModel)),
+                React.createElement(Text, null,
+                    "Workspace ",
+                    React.createElement(Text, { color: INDIGO }, cwd)),
+                React.createElement(Text, { color: "green" }, "\u25CF local runtime ready")),
+            React.createElement(Box, { flexDirection: "column", borderStyle: "round", borderColor: "yellow", paddingX: 1 },
+                React.createElement(Text, { color: "yellow", bold: true }, "Workspace access"),
+                React.createElement(Text, null, "Garuda may read, edit, and execute tools in this folder."),
+                React.createElement(Text, { color: "gray" }, "Only continue if you created or trust this project."),
+                React.createElement(Text, { color: GOLD }, "[Y] Trust folder    [N] Exit")))) : (React.createElement(Box, { borderStyle: "round", borderColor: GOLD, paddingX: 1, marginBottom: 1 },
             React.createElement(Text, { color: GOLD, bold: true },
                 GARUDA_MARK,
-                " "),
-            React.createElement(Text, { color: GOLD, bold: true },
-                "GARUDA CODE",
+                " GARUDA CODE",
                 "  "),
             React.createElement(Text, { color: INDIGO },
                 activeProviderId,
@@ -226,8 +262,8 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
                 activeModel,
                 " \u00B7 ",
                 cwd,
-                sessionId ? ` · session ${sessionId}` : "")),
-        React.createElement(Box, { flexDirection: "column", marginBottom: 1 }, log.slice(-200).map((entry, i) => (React.createElement(Box, { key: i, marginBottom: entry.kind === "assistant" ? 1 : 0 },
+                sessionId ? ` · session ${sessionId}` : ""))),
+        workspaceTrusted && React.createElement(Box, { flexDirection: "column", marginBottom: 1 }, log.slice(-200).map((entry, i) => (React.createElement(Box, { key: i, marginBottom: entry.kind === "assistant" ? 1 : 0 },
             entry.kind === "user" && React.createElement(Text, { color: "white" },
                 "> ",
                 entry.text),
@@ -236,7 +272,7 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
                 "  ",
                 entry.text),
             entry.kind === "system" && React.createElement(Text, { color: "red" }, entry.text))))),
-        pendingConfirm ? (React.createElement(Box, { borderStyle: "round", borderColor: "yellow", paddingX: 1 },
+        !workspaceTrusted ? null : pendingConfirm ? (React.createElement(Box, { borderStyle: "round", borderColor: "yellow", paddingX: 1 },
             React.createElement(Text, { color: "yellow" },
                 pendingConfirm.message,
                 " [y/n] "))) : (React.createElement(Box, { flexDirection: "column", borderStyle: "round", borderColor: busy ? "gray" : INDIGO, paddingX: 1 },

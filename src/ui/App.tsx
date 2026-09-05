@@ -10,6 +10,14 @@ import { BUILTIN_SKILLS } from "../skills/registry.js";
 const GOLD = "#D4A017"; // Garuda's golden feathers
 const INDIGO = "#2C3E7B"; // Vishnu's deep blue
 const GARUDA_MARK = "◆◢";
+const GARUDA_BANNER = [
+  "   ██████╗  █████╗ ██████╗ ██╗   ██╗██████╗  █████╗",
+  "  ██╔════╝ ██╔══██╗██╔══██╗██║   ██║██╔══██╗██╔══██╗",
+  "  ██║  ███╗███████║██████╔╝██║   ██║██║  ██║███████║",
+  "  ██║   ██║██╔══██║██╔══██╗██║   ██║██║  ██║██╔══██║",
+  "  ╚██████╔╝██║  ██║██║  ██║╚██████╔╝██████╔╝██║  ██║",
+  "   ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝",
+];
 
 interface LogEntry {
   kind: "user" | "assistant" | "tool" | "system";
@@ -46,6 +54,7 @@ export function App({
   const { exit } = useApp();
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [workspaceTrusted, setWorkspaceTrusted] = useState(false);
   const [usage, setUsage] = useState({ inputTokens: 0, outputTokens: 0, estimatedContextTokens: 0 });
   const [activeProviderId, setActiveProviderId] = useState(providerId);
   const [activeModel, setActiveModel] = useState(model);
@@ -87,6 +96,14 @@ export function App({
   );
 
   useInput((inputChar, key) => {
+    if (!workspaceTrusted) {
+      if (inputChar.toLowerCase() === "y" || inputChar === "1" || key.return) {
+        setWorkspaceTrusted(true);
+      } else if (inputChar.toLowerCase() === "n" || inputChar === "2" || key.escape) {
+        exit();
+      }
+      return;
+    }
     if (pendingConfirm) {
       if (inputChar.toLowerCase() === "y") {
         pendingConfirm.resolve(true);
@@ -257,18 +274,37 @@ export function App({
 
   return (
     <Box flexDirection="column" padding={1}>
-      <Box borderStyle="round" borderColor={GOLD} paddingX={1} marginBottom={1}>
-        <Text color={GOLD} bold>{GARUDA_MARK} </Text>
-        <Text color={GOLD} bold>
-          GARUDA CODE{"  "}
-        </Text>
-        <Text color={INDIGO}>
-          {activeProviderId}:{activeModel} · {cwd}
-          {sessionId ? ` · session ${sessionId}` : ""}
-        </Text>
-      </Box>
+      {!workspaceTrusted ? (
+        <>
+          <Box flexDirection="column" marginBottom={1}>
+            {GARUDA_BANNER.map((line) => <Text key={line} color={GOLD} bold>{line}</Text>)}
+            <Text color="gray">{`  ${GARUDA_MARK}  AI coding terminal for teams that ship.`}</Text>
+          </Box>
+          <Box flexDirection="column" borderStyle="double" borderColor={GOLD} paddingX={1} marginBottom={1}>
+            <Text color={GOLD} bold>GARUDA SESSION</Text>
+            <Text>Provider  <Text color={GOLD}>{activeProviderId}</Text></Text>
+            <Text>Model     <Text color={GOLD}>{activeModel}</Text></Text>
+            <Text>Workspace <Text color={INDIGO}>{cwd}</Text></Text>
+            <Text color="green">● local runtime ready</Text>
+          </Box>
+          <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
+            <Text color="yellow" bold>Workspace access</Text>
+            <Text>Garuda may read, edit, and execute tools in this folder.</Text>
+            <Text color="gray">Only continue if you created or trust this project.</Text>
+            <Text color={GOLD}>[Y] Trust folder    [N] Exit</Text>
+          </Box>
+        </>
+      ) : (
+        <Box borderStyle="round" borderColor={GOLD} paddingX={1} marginBottom={1}>
+          <Text color={GOLD} bold>{GARUDA_MARK} GARUDA CODE{"  "}</Text>
+          <Text color={INDIGO}>
+            {activeProviderId}:{activeModel} · {cwd}
+            {sessionId ? ` · session ${sessionId}` : ""}
+          </Text>
+        </Box>
+      )}
 
-      <Box flexDirection="column" marginBottom={1}>
+      {workspaceTrusted && <Box flexDirection="column" marginBottom={1}>
         {log.slice(-200).map((entry, i) => (
           <Box key={i} marginBottom={entry.kind === "assistant" ? 1 : 0}>
             {entry.kind === "user" && <Text color="white">{"> "}{entry.text}</Text>}
@@ -277,9 +313,9 @@ export function App({
             {entry.kind === "system" && <Text color="red">{entry.text}</Text>}
           </Box>
         ))}
-      </Box>
+      </Box>}
 
-      {pendingConfirm ? (
+      {!workspaceTrusted ? null : pendingConfirm ? (
         <Box borderStyle="round" borderColor="yellow" paddingX={1}>
           <Text color="yellow">{pendingConfirm.message} [y/n] </Text>
         </Box>

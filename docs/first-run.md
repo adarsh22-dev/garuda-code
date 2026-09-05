@@ -70,7 +70,9 @@ garuda chat
 
 ## Use the TUI
 
-Inside `garuda chat`, type `/` to open the command palette. Type more letters to filter, use Up/Down to select, and Tab to complete. Useful commands include `/help`, `/provider`, `/models`, `/plan`, `/review`, `/compact`, and `/exit`.
+When `garuda chat` starts, Garuda shows its original banner and the active provider, model, and workspace. Confirm with `Y` only for a folder you created or trust; press `N` or `Esc` to exit. This gate appears before file tools or model prompts are enabled.
+
+After accepting the workspace, type `/` to open the command palette. Type more letters to filter, use Up/Down to select, and Tab to complete. Useful commands include `/help`, `/provider`, `/models`, `/plan`, `/review`, `/compact`, and `/exit`.
 
 Use `@` file references and `!` shell commands as ordinary prompt text for now; dedicated file-reference and shell-prefix parsing are planned roadmap features.
 
