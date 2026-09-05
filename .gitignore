@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+
+# Local Garuda credentials and session history
+.garuda/
+
+# Logs and local tooling
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Local package artifacts
+*.tgz

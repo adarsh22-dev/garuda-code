@@ -1,0 +1,297 @@
+import React, { useState, useCallback } from "react";
+import { Box, Text, useApp, useInput } from "ink";
+import TextInput from "ink-text-input";
+import { AgentLoop } from "../agent/loop.js";
+import type { Provider, Message } from "../providers/types.js";
+import type { Tool } from "../tools/types.js";
+import { getSlashCommand, SLASH_COMMANDS } from "../commands.js";
+import { BUILTIN_SKILLS } from "../skills/registry.js";
+
+const GOLD = "#D4A017"; // Garuda's golden feathers
+const INDIGO = "#2C3E7B"; // Vishnu's deep blue
+
+interface LogEntry {
+  kind: "user" | "assistant" | "tool" | "system";
+  text: string;
+}
+
+export function App({
+  provider,
+  providerId,
+  model,
+  cwd,
+  yolo,
+  tools,
+  sessionId,
+  initialMessages,
+  onHistoryChange,
+  maxHistoryMessages = 40,
+  providerIds = [],
+  onProviderChange,
+}: {
+  provider: Provider;
+  providerId: string;
+  model: string;
+  cwd: string;
+  yolo: boolean;
+  tools?: Tool[];
+  sessionId?: string;
+  initialMessages?: Message[];
+  onHistoryChange?: (messages: Message[]) => void;
+  maxHistoryMessages?: number;
+  providerIds?: string[];
+  onProviderChange?: (providerId: string, model?: string) => Promise<{ provider: Provider; providerId: string; model: string }>;
+}) {
+  const { exit } = useApp();
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [usage, setUsage] = useState({ inputTokens: 0, outputTokens: 0, estimatedContextTokens: 0 });
+  const [activeProviderId, setActiveProviderId] = useState(providerId);
+  const [activeModel, setActiveModel] = useState(model);
+  const slashSuggestions = input.startsWith("/")
+    ? SLASH_COMMANDS.filter((command) => command.name.startsWith(input.slice(1).split(/\s/, 1)[0].toLowerCase())).slice(0, 8)
+    : [];
+  const [log, setLog] = useState<LogEntry[]>(
+    () =>
+      (initialMessages ?? [])
+        .filter((m) => m.role !== "tool")
+        .flatMap((m): LogEntry[] =>
+          m.content
+            .filter((b): b is { type: "text"; text: string } => b.type === "text" && Boolean(b.text.trim()))
+            .map((b) => ({ kind: m.role === "user" ? "user" : "assistant", text: b.text }))
+        )
+  );
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    message: string;
+    resolve: (v: boolean) => void;
+  } | null>(null);
+
+  const [agent] = useState(
+    () =>
+      new AgentLoop({
+        provider,
+        cwd,
+        yolo,
+        tools,
+        initialHistory: initialMessages,
+        onHistoryChange,
+        maxHistoryMessages,
+        confirm: (message) =>
+          new Promise<boolean>((resolve) => {
+            setPendingConfirm({ message, resolve });
+          }),
+      })
+  );
+
+  useInput((inputChar, key) => {
+    if (pendingConfirm) {
+      if (inputChar.toLowerCase() === "y") {
+        pendingConfirm.resolve(true);
+        setPendingConfirm(null);
+      } else if (inputChar.toLowerCase() === "n" || key.escape) {
+        pendingConfirm.resolve(false);
+        setPendingConfirm(null);
+      }
+      return;
+    }
+    if (key.ctrl && inputChar === "c") exit();
+    if (key.tab && slashSuggestions.length === 1) {
+      setInput(`/${slashSuggestions[0].name} `);
+    }
+  });
+
+  const handleSubmit = useCallback(
+    async (value: string) => {
+      const text = value.trim();
+      if (!text || busy) return;
+      setInput("");
+      if (text === "/exit" || text === "/quit") {
+        exit();
+        return;
+      }
+      if (text.startsWith("/")) {
+        const [rawName] = text.slice(1).trim().split(/\s+/, 1);
+        const command = getSlashCommand(rawName?.toLowerCase() ?? "");
+        if (!command) {
+          setLog((l) => [...l, { kind: "system", text: `Unknown command: /${rawName}. Try /help.` }]);
+          return;
+        }
+        if (command.name === "clear") {
+          agent.clearHistory();
+          setLog([]);
+          setUsage(agent.getUsage());
+          return;
+        }
+        if (command.name === "compact") {
+          agent.compactHistory();
+          setLog((l) => [...l, { kind: "system", text: `Context compacted to about ${agent.getUsage().estimatedContextTokens} tokens.` }]);
+          setUsage(agent.getUsage());
+          return;
+        }
+        if (command.name === "help") {
+          setLog((l) => [...l, { kind: "system", text: SLASH_COMMANDS.map((item) => `/${item.name} - ${item.description}`).join("\n") }]);
+          return;
+        }
+        if (command.name === "status" || command.name === "context") {
+          const current = agent.getUsage();
+          setLog((l) => [...l, { kind: "system", text: `${activeProviderId}:${activeModel} | context ~${current.estimatedContextTokens} tokens | input ${current.inputTokens} | output ${current.outputTokens}` }]);
+          return;
+        }
+        if (command.name === "provider" || command.name === "model") {
+          const args = text.slice(command.name.length + 1).trim().split(/\s+/).filter(Boolean);
+          if (!args.length) {
+            setLog((l) => [...l, { kind: "system", text: command.name === "provider"
+              ? `Active provider: ${activeProviderId}:${activeModel}\nAvailable: ${providerIds.join(", ") || activeProviderId}`
+              : `Active model: ${activeModel}\nUsage: /model <model-name>` }]);
+            return;
+          }
+          if (!onProviderChange) {
+            setLog((l) => [...l, { kind: "system", text: "Provider switching is unavailable in this session." }]);
+            return;
+          }
+          const requestedProvider = command.name === "provider" ? args[0] : activeProviderId;
+          const requestedModel = command.name === "provider" ? args[1] : args[0];
+          setBusy(true);
+          try {
+            const next = await onProviderChange(requestedProvider, requestedModel);
+            agent.setProvider(next.provider);
+            setActiveProviderId(next.providerId);
+            setActiveModel(next.model);
+            setLog((l) => [...l, { kind: "system", text: `Switched to ${next.providerId}:${next.model}.` }]);
+          } catch (err) {
+            setLog((l) => [...l, { kind: "system", text: `Provider switch failed: ${(err as Error).message}` }]);
+          } finally {
+            setBusy(false);
+          }
+          return;
+        }
+        if (command.name === "models") {
+          setBusy(true);
+          try {
+            const models = await agent.listModels();
+            setLog((l) => [...l, { kind: "system", text: models.length ? models.join("\n") : "The active provider does not expose a model catalog." }]);
+          } catch (err) {
+            setLog((l) => [...l, { kind: "system", text: `Model lookup failed: ${(err as Error).message}` }]);
+          } finally {
+            setBusy(false);
+          }
+          return;
+        }
+        if (command.name === "skills") {
+          setLog((l) => [...l, { kind: "system", text: BUILTIN_SKILLS.map((skill) => `/${skill.id} - ${skill.description}`).join("\n") }]);
+          return;
+        }
+        if (command.name === "tools") {
+          setLog((l) => [...l, { kind: "system", text: (tools ?? []).map((tool) => tool.definition.name).join(", ") || "No tools loaded." }]);
+          return;
+        }
+        if (["debug", "security", "performance", "refactor", "test", "document"].includes(command.name)) {
+          setLog((l) => [...l, { kind: "system", text: `Activating ${command.name} skill...` }]);
+          setBusy(true);
+          try {
+            await agent.send(`${command.description}. Apply this skill to the following task: ${text.slice(command.name.length + 1).trim() || "the current codebase"}`, {
+              onAssistantText: (t) => setLog((l) => [...l, { kind: "assistant", text: t }]),
+              onToolCall: (name, toolInput) => setLog((l) => [...l, { kind: "tool", text: `→ ${name}(${JSON.stringify(toolInput)})` }]),
+              onToolResult: (name, result, isError) => setLog((l) => [...l, { kind: "tool", text: `${isError ? "✗" : "✓"} ${name}: ${result.slice(0, 300)}` }]),
+              onUsage: setUsage,
+            });
+          } catch (err) {
+            setLog((l) => [...l, { kind: "system", text: `Error: ${(err as Error).message}` }]);
+          } finally {
+            setBusy(false);
+          }
+          return;
+        }
+        if (["plan", "review", "security-review", "diff", "doctor", "diagnostics"].includes(command.name)) {
+          setLog((l) => [...l, { kind: "system", text: `Running ${command.name} workflow...` }]);
+          setBusy(true);
+          try {
+            await agent.send(`Run a ${command.name} workflow for this repository. Inspect the relevant files and tools first, then provide concrete findings or a plan. User details: ${text.slice(command.name.length + 1).trim() || "none"}`, {
+              onAssistantText: (t) => setLog((l) => [...l, { kind: "assistant", text: t }]),
+              onToolCall: (name, toolInput) => setLog((l) => [...l, { kind: "tool", text: `→ ${name}(${JSON.stringify(toolInput)})` }]),
+              onToolResult: (name, result, isError) => setLog((l) => [...l, { kind: "tool", text: `${isError ? "✗" : "✓"} ${name}: ${result.slice(0, 300)}` }]),
+              onUsage: setUsage,
+            });
+          } catch (err) {
+            setLog((l) => [...l, { kind: "system", text: `Error: ${(err as Error).message}` }]);
+          } finally {
+            setBusy(false);
+          }
+          return;
+        }
+        setLog((l) => [...l, { kind: "system", text: `/${command.name} is recognized, but this integration is not wired into the local CLI yet.` }]);
+        return;
+      }
+      setLog((l) => [...l, { kind: "user", text }]);
+      setBusy(true);
+      try {
+        await agent.send(text, {
+          onAssistantText: (t) => setLog((l) => [...l, { kind: "assistant", text: t }]),
+          onToolCall: (name, toolInput) =>
+            setLog((l) => [...l, { kind: "tool", text: `→ ${name}(${JSON.stringify(toolInput)})` }]),
+          onToolResult: (name, result, isError) =>
+            setLog((l) => [
+              ...l,
+              { kind: "tool", text: `${isError ? "✗" : "✓"} ${name}: ${result.slice(0, 300)}` },
+            ]),
+            onUsage: setUsage,
+        });
+      } catch (err) {
+        setLog((l) => [...l, { kind: "system", text: `Error: ${(err as Error).message}` }]);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [activeModel, activeProviderId, agent, busy, exit, onProviderChange, providerIds]
+  );
+
+  return (
+    <Box flexDirection="column" padding={1}>
+      <Box borderStyle="round" borderColor={GOLD} paddingX={1} marginBottom={1}>
+        <Text color={GOLD} bold>
+          GARUDA CODE{"  "}
+        </Text>
+        <Text color={INDIGO}>
+          {activeProviderId}:{activeModel} · {cwd}
+          {sessionId ? ` · session ${sessionId}` : ""}
+        </Text>
+      </Box>
+
+      <Box flexDirection="column" marginBottom={1}>
+        {log.slice(-200).map((entry, i) => (
+          <Box key={i} marginBottom={entry.kind === "assistant" ? 1 : 0}>
+            {entry.kind === "user" && <Text color="white">{"> "}{entry.text}</Text>}
+            {entry.kind === "assistant" && <Text color={GOLD}>{entry.text}</Text>}
+            {entry.kind === "tool" && <Text color="gray">  {entry.text}</Text>}
+            {entry.kind === "system" && <Text color="red">{entry.text}</Text>}
+          </Box>
+        ))}
+      </Box>
+
+      {pendingConfirm ? (
+        <Box borderStyle="round" borderColor="yellow" paddingX={1}>
+          <Text color="yellow">{pendingConfirm.message} [y/n] </Text>
+        </Box>
+      ) : (
+        <Box flexDirection="column" borderStyle="round" borderColor={busy ? "gray" : INDIGO} paddingX={1}>
+          {slashSuggestions.length > 0 && (
+            <Box flexDirection="column" marginBottom={1}>
+              {slashSuggestions.map((suggestion, index) => (
+                <Text key={suggestion.name} color={index === 0 ? GOLD : "gray"}>
+                  {index === 0 ? "› " : "  "}{`/${suggestion.name}`} <Text color="gray">{suggestion.description}</Text>
+                </Text>
+              ))}
+              <Text color="gray">Tab completes the highlighted command</Text>
+            </Box>
+          )}
+          <Box>
+          <Text color={INDIGO}>{"❯ "}</Text>
+          <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} showCursor={!busy} />
+          </Box>
+        </Box>
+      )}
+      {busy && <Text color="gray">Garuda is working… (Ctrl+C to force quit)</Text>}
+      <Text color="gray">context ~{usage.estimatedContextTokens} tokens · in {usage.inputTokens} · out {usage.outputTokens}</Text>
+    </Box>
+  );
+}
