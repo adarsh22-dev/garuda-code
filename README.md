@@ -66,6 +66,13 @@ garuda --help
 garuda chat
 ```
 
+Until the npm release is available, the reliable Windows install is the public GitHub archive:
+
+```powershell
+npm install --global https://github.com/adarsh22-dev/garuda-code/archive/refs/heads/master.tar.gz
+garuda chat
+```
+
 The package exposes the `garuda` command and works in PowerShell, macOS/Linux terminals, and the VS Code integrated terminal. For the current GitHub source:
 
 ```bash

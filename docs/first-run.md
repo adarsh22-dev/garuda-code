@@ -51,6 +51,15 @@ garuda config set-default openrouter
 garuda chat
 ```
 
+Before npm publication, install the public GitHub archive directly:
+
+```powershell
+npm install --global https://github.com/adarsh22-dev/garuda-code/archive/refs/heads/master.tar.gz
+garuda chat
+```
+
+This archive form is recommended on Windows with npm 11. Some npm versions leave a temporary junction behind when installing a Git URL globally (`git+https://...`); the archive URL avoids that npm behavior.
+
 Local models do not need a cloud key:
 
 ```bash
