@@ -55,6 +55,22 @@ async function resolveProviderIds() {
     const cfg = await loadConfig();
     return [...PROVIDER_PRESETS.map((preset) => preset.id), ...(cfg.customProviders ?? []).map((preset) => preset.id)];
 }
+async function resolveProviderOptions() {
+    const cfg = await loadConfig();
+    const builtIns = PROVIDER_PRESETS.map((preset) => ({
+        id: preset.id,
+        label: preset.label,
+        configured: Boolean(process.env[preset.envKey] || cfg.providerOverrides?.[preset.id]?.apiKey),
+        defaultModel: preset.defaultModel,
+    }));
+    const custom = (cfg.customProviders ?? []).map((preset) => ({
+        id: preset.id,
+        label: preset.label,
+        configured: Boolean(process.env[preset.envKey] || cfg.providerOverrides?.[preset.id]?.apiKey),
+        defaultModel: preset.defaultModel,
+    }));
+    return [...builtIns, ...custom];
+}
 program
     .command("chat", { isDefault: true })
     .description("Start an interactive chat session with Garuda in this directory.")
@@ -91,10 +107,21 @@ program
         initialMessages: session.messages,
         maxHistoryMessages,
         providerIds: await resolveProviderIds(),
+        providerOptions: await resolveProviderOptions(),
         onProviderChange: async (nextProviderId, nextModel) => {
             const next = await resolveProviderAndModel({ provider: nextProviderId, model: nextModel });
             session.providerId = next.providerId;
             return next;
+        },
+        onProviderProfileSave: async (nextProviderId, nextModel, apiKey) => {
+            const cfg = await loadConfig();
+            cfg.providerOverrides = {
+                ...(cfg.providerOverrides ?? {}),
+                [nextProviderId]: { ...(cfg.providerOverrides?.[nextProviderId] ?? {}), model: nextModel, apiKey },
+            };
+            cfg.defaultProvider = nextProviderId;
+            await saveConfig(cfg);
+            return resolveProviderAndModel({ provider: nextProviderId, model: nextModel });
         },
         onHistoryChange: (messages) => {
             session.messages = messages;

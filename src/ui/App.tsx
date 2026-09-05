@@ -24,6 +24,13 @@ interface LogEntry {
   text: string;
 }
 
+interface ProviderOption {
+  id: string;
+  label: string;
+  configured: boolean;
+  defaultModel: string;
+}
+
 export function App({
   provider,
   providerId,
@@ -36,7 +43,9 @@ export function App({
   onHistoryChange,
   maxHistoryMessages = 40,
   providerIds = [],
+  providerOptions = [],
   onProviderChange,
+  onProviderProfileSave,
 }: {
   provider: Provider;
   providerId: string;
@@ -49,12 +58,18 @@ export function App({
   onHistoryChange?: (messages: Message[]) => void;
   maxHistoryMessages?: number;
   providerIds?: string[];
+  providerOptions?: ProviderOption[];
   onProviderChange?: (providerId: string, model?: string) => Promise<{ provider: Provider; providerId: string; model: string }>;
+  onProviderProfileSave?: (providerId: string, model: string, apiKey: string) => Promise<{ provider: Provider; providerId: string; model: string }>;
 }) {
   const { exit } = useApp();
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [workspaceTrusted, setWorkspaceTrusted] = useState(false);
+  const [providerPickerOpen, setProviderPickerOpen] = useState(false);
+  const [providerManagerMode, setProviderManagerMode] = useState<"menu" | "profiles" | "presets">("menu");
+  const [selectedProvider, setSelectedProvider] = useState(0);
+  const [providerWizard, setProviderWizard] = useState<{ presetId: string; label: string; stage: "model" | "key"; model: string } | null>(null);
   const [usage, setUsage] = useState({ inputTokens: 0, outputTokens: 0, estimatedContextTokens: 0 });
   const [activeProviderId, setActiveProviderId] = useState(providerId);
   const [activeModel, setActiveModel] = useState(model);
@@ -104,6 +119,45 @@ export function App({
       }
       return;
     }
+    if (providerWizard) return;
+    if (providerPickerOpen) {
+      if (key.escape) {
+        setProviderPickerOpen(false);
+      } else if (key.upArrow || key.downArrow) {
+        const limit = providerManagerMode === "menu" ? 2 : Math.max(providerOptions.length - 1, 0);
+        setSelectedProvider((index) => key.upArrow ? Math.max(0, index - 1) : Math.min(limit, index + 1));
+      } else if (key.return) {
+        if (providerManagerMode === "menu") {
+          if (selectedProvider === 0) {
+            setProviderManagerMode("presets");
+            setSelectedProvider(0);
+          } else if (selectedProvider === 1) {
+            setProviderManagerMode("profiles");
+            setSelectedProvider(Math.max(0, providerOptions.findIndex((option) => option.id === activeProviderId)));
+          } else {
+            setProviderPickerOpen(false);
+          }
+        } else if (providerManagerMode === "presets" && providerOptions[selectedProvider]) {
+          const option = providerOptions[selectedProvider];
+          setProviderPickerOpen(false);
+          setProviderWizard({ presetId: option.id, label: option.label, stage: "model", model: option.defaultModel });
+          setInput(option.defaultModel);
+        } else if (providerManagerMode === "profiles" && providerOptions[selectedProvider] && onProviderChange) {
+          const option = providerOptions[selectedProvider];
+          setBusy(true);
+          void onProviderChange(option.id).then((next) => {
+            agent.setProvider(next.provider);
+            setActiveProviderId(next.providerId);
+            setActiveModel(next.model);
+            setProviderPickerOpen(false);
+            setLog((items) => [...items, { kind: "system", text: `Switched to ${next.providerId}:${next.model}.` }]);
+          }).catch((err) => {
+            setLog((items) => [...items, { kind: "system", text: `Provider switch failed: ${(err as Error).message}` }]);
+          }).finally(() => setBusy(false));
+        }
+      }
+      return;
+    }
     if (pendingConfirm) {
       if (inputChar.toLowerCase() === "y") {
         pendingConfirm.resolve(true);
@@ -132,6 +186,27 @@ export function App({
       const text = value.trim();
       if (!text || busy) return;
       setInput("");
+      if (providerWizard) {
+        if (providerWizard.stage === "model") {
+          setProviderWizard({ ...providerWizard, stage: "key", model: text });
+          return;
+        }
+        if (!onProviderProfileSave) return;
+        setBusy(true);
+        try {
+          const next = await onProviderProfileSave(providerWizard.presetId, providerWizard.model, text);
+          agent.setProvider(next.provider);
+          setActiveProviderId(next.providerId);
+          setActiveModel(next.model);
+          setProviderWizard(null);
+          setLog((items) => [...items, { kind: "system", text: `Provider profile saved: ${next.providerId}:${next.model}.` }]);
+        } catch (err) {
+          setLog((items) => [...items, { kind: "system", text: `Profile setup failed: ${(err as Error).message}` }]);
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
       if (text === "/exit" || text === "/quit") {
         exit();
         return;
@@ -166,10 +241,21 @@ export function App({
         }
         if (command.name === "provider" || command.name === "model") {
           const args = text.slice((rawName?.length ?? 0) + 1).trim().split(/\s+/).filter(Boolean);
+          if (command.name === "provider" && args[0] === "add") {
+            setProviderManagerMode("presets");
+            setSelectedProvider(0);
+            setProviderPickerOpen(true);
+            return;
+          }
           if (!args.length) {
-            setLog((l) => [...l, { kind: "system", text: command.name === "provider"
-              ? `Active provider: ${activeProviderId}:${activeModel}\nAvailable: ${providerIds.join(", ") || activeProviderId}`
-              : `Active model: ${activeModel}\nUsage: /model <model-name>` }]);
+            if (command.name === "provider") {
+              setSelectedProvider(Math.max(0, providerOptions.findIndex((option) => option.id === activeProviderId)));
+              setProviderManagerMode("menu");
+              setSelectedProvider(0);
+              setProviderPickerOpen(true);
+            } else {
+              setLog((l) => [...l, { kind: "system", text: `Active model: ${activeModel}\nUsage: /model <model-name>` }]);
+            }
             return;
           }
           if (!onProviderChange) {
@@ -269,7 +355,7 @@ export function App({
         setBusy(false);
       }
     },
-    [activeModel, activeProviderId, agent, busy, exit, onProviderChange, providerIds]
+    [activeModel, activeProviderId, agent, busy, exit, onProviderChange, onProviderProfileSave, providerIds, providerOptions, providerWizard]
   );
 
   return (
@@ -315,7 +401,24 @@ export function App({
         ))}
       </Box>}
 
-      {!workspaceTrusted ? null : pendingConfirm ? (
+      {!workspaceTrusted ? null : providerWizard ? (
+        <Box flexDirection="column" borderStyle="double" borderColor={GOLD} paddingX={1}>
+          <Text color={GOLD} bold>Create provider profile</Text>
+          <Text>{providerWizard.label}</Text>
+          <Text color="gray">{providerWizard.stage === "model" ? "Default model (Enter to continue)" : "API key (stored in ~/.garuda/config.json)"}</Text>
+          <Box><Text color={INDIGO}>❯ </Text><TextInput value={input} onChange={setInput} onSubmit={handleSubmit} /></Box>
+          <Text color="gray">Enter continues · Ctrl+C exits</Text>
+        </Box>
+      ) : providerPickerOpen ? (
+        <Box flexDirection="column" borderStyle="double" borderColor={GOLD} paddingX={1}>
+          <Text color={GOLD} bold>Provider manager</Text>
+          <Text color="gray">Active profile: {activeProviderId}:{activeModel}</Text>
+          <Text color="gray">Choose a provider profile. Up/Down selects · Enter switches · Esc closes</Text>
+          {providerManagerMode === "menu" && ["Add provider profile", "Set active provider", "Done"].map((label, index) => <Text key={label} color={index === selectedProvider ? GOLD : "gray"}>{index === selectedProvider ? "› " : "  "}{index + 1}. {label}</Text>)}
+          {providerManagerMode !== "menu" && providerOptions.slice(0, 18).map((option, index) => <Text key={option.id} color={index === selectedProvider ? GOLD : "gray"}>{index === selectedProvider ? "› " : "  "}{option.label} ({option.id}) {option.configured ? "● configured" : "○ setup needed"}</Text>)}
+          {!providerOptions.length && <Text color="yellow">No provider profiles are available.</Text>}
+        </Box>
+      ) : pendingConfirm ? (
         <Box borderStyle="round" borderColor="yellow" paddingX={1}>
           <Text color="yellow">{pendingConfirm.message} [y/n] </Text>
         </Box>

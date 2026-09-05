@@ -12,6 +12,8 @@ Common short aliases are supported: `/p` for `/provider`, `/m` for `/model`, `/h
 
 `/provider`, `/model`, `/models`, `/connect`, `/usage`, `/effort`, `/set-context-window`, `/clear-context-window`, `/smartroute`
 
+`/provider` opens the provider manager. Choose `Add provider profile` to select a preset, enter its default model, and enter its API key. Choose `Set active provider` to switch saved profiles. Configured profiles are marked `configured`; Up/Down plus Enter controls the menus. `/provider add` opens the preset step directly. Run `garuda providers setup` when you prefer the batch wizard.
+
 ## Coding workflows
 
 `/plan`, `/review`, `/security-review`, `/diff`, `/debug`, `/security`, `/performance`, `/refactor`, `/test`, `/document`, `/doctor`, `/diagnostics`, `/tools`, `/skills`

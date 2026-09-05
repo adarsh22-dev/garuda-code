@@ -15,11 +15,15 @@ const GARUDA_BANNER = [
     "  ╚██████╔╝██║  ██║██║  ██║╚██████╔╝██████╔╝██║  ██║",
     "   ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝",
 ];
-export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, initialMessages, onHistoryChange, maxHistoryMessages = 40, providerIds = [], onProviderChange, }) {
+export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, initialMessages, onHistoryChange, maxHistoryMessages = 40, providerIds = [], providerOptions = [], onProviderChange, onProviderProfileSave, }) {
     const { exit } = useApp();
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
     const [workspaceTrusted, setWorkspaceTrusted] = useState(false);
+    const [providerPickerOpen, setProviderPickerOpen] = useState(false);
+    const [providerManagerMode, setProviderManagerMode] = useState("menu");
+    const [selectedProvider, setSelectedProvider] = useState(0);
+    const [providerWizard, setProviderWizard] = useState(null);
     const [usage, setUsage] = useState({ inputTokens: 0, outputTokens: 0, estimatedContextTokens: 0 });
     const [activeProviderId, setActiveProviderId] = useState(providerId);
     const [activeModel, setActiveModel] = useState(model);
@@ -56,6 +60,52 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
             }
             return;
         }
+        if (providerWizard)
+            return;
+        if (providerPickerOpen) {
+            if (key.escape) {
+                setProviderPickerOpen(false);
+            }
+            else if (key.upArrow || key.downArrow) {
+                const limit = providerManagerMode === "menu" ? 2 : Math.max(providerOptions.length - 1, 0);
+                setSelectedProvider((index) => key.upArrow ? Math.max(0, index - 1) : Math.min(limit, index + 1));
+            }
+            else if (key.return) {
+                if (providerManagerMode === "menu") {
+                    if (selectedProvider === 0) {
+                        setProviderManagerMode("presets");
+                        setSelectedProvider(0);
+                    }
+                    else if (selectedProvider === 1) {
+                        setProviderManagerMode("profiles");
+                        setSelectedProvider(Math.max(0, providerOptions.findIndex((option) => option.id === activeProviderId)));
+                    }
+                    else {
+                        setProviderPickerOpen(false);
+                    }
+                }
+                else if (providerManagerMode === "presets" && providerOptions[selectedProvider]) {
+                    const option = providerOptions[selectedProvider];
+                    setProviderPickerOpen(false);
+                    setProviderWizard({ presetId: option.id, label: option.label, stage: "model", model: option.defaultModel });
+                    setInput(option.defaultModel);
+                }
+                else if (providerManagerMode === "profiles" && providerOptions[selectedProvider] && onProviderChange) {
+                    const option = providerOptions[selectedProvider];
+                    setBusy(true);
+                    void onProviderChange(option.id).then((next) => {
+                        agent.setProvider(next.provider);
+                        setActiveProviderId(next.providerId);
+                        setActiveModel(next.model);
+                        setProviderPickerOpen(false);
+                        setLog((items) => [...items, { kind: "system", text: `Switched to ${next.providerId}:${next.model}.` }]);
+                    }).catch((err) => {
+                        setLog((items) => [...items, { kind: "system", text: `Provider switch failed: ${err.message}` }]);
+                    }).finally(() => setBusy(false));
+                }
+            }
+            return;
+        }
         if (pendingConfirm) {
             if (inputChar.toLowerCase() === "y") {
                 pendingConfirm.resolve(true);
@@ -85,6 +135,30 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
         if (!text || busy)
             return;
         setInput("");
+        if (providerWizard) {
+            if (providerWizard.stage === "model") {
+                setProviderWizard({ ...providerWizard, stage: "key", model: text });
+                return;
+            }
+            if (!onProviderProfileSave)
+                return;
+            setBusy(true);
+            try {
+                const next = await onProviderProfileSave(providerWizard.presetId, providerWizard.model, text);
+                agent.setProvider(next.provider);
+                setActiveProviderId(next.providerId);
+                setActiveModel(next.model);
+                setProviderWizard(null);
+                setLog((items) => [...items, { kind: "system", text: `Provider profile saved: ${next.providerId}:${next.model}.` }]);
+            }
+            catch (err) {
+                setLog((items) => [...items, { kind: "system", text: `Profile setup failed: ${err.message}` }]);
+            }
+            finally {
+                setBusy(false);
+            }
+            return;
+        }
         if (text === "/exit" || text === "/quit") {
             exit();
             return;
@@ -119,10 +193,22 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
             }
             if (command.name === "provider" || command.name === "model") {
                 const args = text.slice((rawName?.length ?? 0) + 1).trim().split(/\s+/).filter(Boolean);
+                if (command.name === "provider" && args[0] === "add") {
+                    setProviderManagerMode("presets");
+                    setSelectedProvider(0);
+                    setProviderPickerOpen(true);
+                    return;
+                }
                 if (!args.length) {
-                    setLog((l) => [...l, { kind: "system", text: command.name === "provider"
-                                ? `Active provider: ${activeProviderId}:${activeModel}\nAvailable: ${providerIds.join(", ") || activeProviderId}`
-                                : `Active model: ${activeModel}\nUsage: /model <model-name>` }]);
+                    if (command.name === "provider") {
+                        setSelectedProvider(Math.max(0, providerOptions.findIndex((option) => option.id === activeProviderId)));
+                        setProviderManagerMode("menu");
+                        setSelectedProvider(0);
+                        setProviderPickerOpen(true);
+                    }
+                    else {
+                        setLog((l) => [...l, { kind: "system", text: `Active model: ${activeModel}\nUsage: /model <model-name>` }]);
+                    }
                     return;
                 }
                 if (!onProviderChange) {
@@ -229,7 +315,7 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
         finally {
             setBusy(false);
         }
-    }, [activeModel, activeProviderId, agent, busy, exit, onProviderChange, providerIds]);
+    }, [activeModel, activeProviderId, agent, busy, exit, onProviderChange, onProviderProfileSave, providerIds, providerOptions, providerWizard]);
     return (React.createElement(Box, { flexDirection: "column", padding: 1 },
         !workspaceTrusted ? (React.createElement(React.Fragment, null,
             React.createElement(Box, { flexDirection: "column", marginBottom: 1 },
@@ -272,7 +358,34 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
                 "  ",
                 entry.text),
             entry.kind === "system" && React.createElement(Text, { color: "red" }, entry.text))))),
-        !workspaceTrusted ? null : pendingConfirm ? (React.createElement(Box, { borderStyle: "round", borderColor: "yellow", paddingX: 1 },
+        !workspaceTrusted ? null : providerWizard ? (React.createElement(Box, { flexDirection: "column", borderStyle: "double", borderColor: GOLD, paddingX: 1 },
+            React.createElement(Text, { color: GOLD, bold: true }, "Create provider profile"),
+            React.createElement(Text, null, providerWizard.label),
+            React.createElement(Text, { color: "gray" }, providerWizard.stage === "model" ? "Default model (Enter to continue)" : "API key (stored in ~/.garuda/config.json)"),
+            React.createElement(Box, null,
+                React.createElement(Text, { color: INDIGO }, "\u276F "),
+                React.createElement(TextInput, { value: input, onChange: setInput, onSubmit: handleSubmit })),
+            React.createElement(Text, { color: "gray" }, "Enter continues \u00B7 Ctrl+C exits"))) : providerPickerOpen ? (React.createElement(Box, { flexDirection: "column", borderStyle: "double", borderColor: GOLD, paddingX: 1 },
+            React.createElement(Text, { color: GOLD, bold: true }, "Provider manager"),
+            React.createElement(Text, { color: "gray" },
+                "Active profile: ",
+                activeProviderId,
+                ":",
+                activeModel),
+            React.createElement(Text, { color: "gray" }, "Choose a provider profile. Up/Down selects \u00B7 Enter switches \u00B7 Esc closes"),
+            providerManagerMode === "menu" && ["Add provider profile", "Set active provider", "Done"].map((label, index) => React.createElement(Text, { key: label, color: index === selectedProvider ? GOLD : "gray" },
+                index === selectedProvider ? "› " : "  ",
+                index + 1,
+                ". ",
+                label)),
+            providerManagerMode !== "menu" && providerOptions.slice(0, 18).map((option, index) => React.createElement(Text, { key: option.id, color: index === selectedProvider ? GOLD : "gray" },
+                index === selectedProvider ? "› " : "  ",
+                option.label,
+                " (",
+                option.id,
+                ") ",
+                option.configured ? "● configured" : "○ setup needed")),
+            !providerOptions.length && React.createElement(Text, { color: "yellow" }, "No provider profiles are available."))) : pendingConfirm ? (React.createElement(Box, { borderStyle: "round", borderColor: "yellow", paddingX: 1 },
             React.createElement(Text, { color: "yellow" },
                 pendingConfirm.message,
                 " [y/n] "))) : (React.createElement(Box, { flexDirection: "column", borderStyle: "round", borderColor: busy ? "gray" : INDIGO, paddingX: 1 },
