@@ -1,10 +1,10 @@
 # Garuda Code
 
-A multi-provider, tool-using AI coding agent for the terminal — an open, from-scratch build in the shape of Claude Code / OpenClaude.
+A multi-provider, tool-using AI coding agent for the terminal — an open, from-scratch build inspired by modern terminal coding assistants.
 
 Named for Garuda, Vishnu's mount in Hindu mythology: a fast, powerful bird — the intended feel of the agent.
 
-## What actually works right now (v0.1.1)
+## What actually works right now (v0.1.6)
 
 This is a genuine, tested v1, not a stub. What's built and verified:
 

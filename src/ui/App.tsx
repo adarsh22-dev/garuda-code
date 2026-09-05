@@ -7,9 +7,28 @@ import type { Tool } from "../tools/types.js";
 import { getSlashCommand, SLASH_COMMANDS } from "../commands.js";
 import { BUILTIN_SKILLS } from "../skills/registry.js";
 
-const GOLD = "#D4A017"; // Garuda's golden feathers
-const INDIGO = "#2C3E7B"; // Vishnu's deep blue
+const GOLD = "#D4A017";
+const ORANGE = "#E8740C";
+const INDIGO = "#2C3E7B";
 const GARUDA_MARK = "◆◢";
+
+const GARUDA_LOGO: { text: string; color: string }[] = [
+  { text: "              /\\              ", color: GOLD },
+  { text: "             /  \\             ", color: GOLD },
+  { text: "            / ◤  ◥\\            ", color: GOLD },
+  { text: "           /  /\\  \\           ", color: GOLD },
+  { text: "     /\\   /  /  \\  \\   /\\     ", color: ORANGE },
+  { text: "    /  \\ /  /    \\  \\ /  \\    ", color: ORANGE },
+  { text: "   / ◤ ◥/  /  ▲▲  \\  \\ ◤ ◥   ", color: ORANGE },
+  { text: "  /  /\\ /  / ◢██◣  \\  \\ /\\  ", color: ORANGE },
+  { text: " /  / / \\  / ████  \\ / \\ \\  ", color: INDIGO },
+  { text: " \\  \\ \\ /  \\ ████  / \\ / /  ", color: INDIGO },
+  { text: "  \\  \\  /    \\███/    \\  \\  / ", color: INDIGO },
+  { text: "   \\  \\/  ▲   ▀▀▀   ▲  \\/   ", color: INDIGO },
+  { text: "    \\ /   █▄▄▄▄▄▄▄▄█   \\ /  ", color: ORANGE },
+  { text: "     V    ▀▀▀▀▀▀▀▀▀▀▀    V   ", color: ORANGE },
+];
+
 const GARUDA_BANNER = [
   "   ██████╗  █████╗ ██████╗ ██╗   ██╗██████╗  █████╗",
   "  ██╔════╝ ██╔══██╗██╔══██╗██║   ██║██╔══██╗██╔══██╗",
@@ -374,6 +393,7 @@ export function App({
       {!workspaceTrusted ? (
         <>
           <Box flexDirection="column" marginBottom={1}>
+            {GARUDA_LOGO.map((line, i) => <Text key={`logo-${i}`} color={line.color}>{line.text}</Text>)}
             {GARUDA_BANNER.map((line) => <Text key={line} color={GOLD} bold>{line}</Text>)}
             <Text color="gray">{`  ${GARUDA_MARK}  AI coding terminal for teams that ship.`}</Text>
           </Box>

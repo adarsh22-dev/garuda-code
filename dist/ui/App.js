@@ -4,9 +4,26 @@ import TextInput from "ink-text-input";
 import { AgentLoop } from "../agent/loop.js";
 import { getSlashCommand, SLASH_COMMANDS } from "../commands.js";
 import { BUILTIN_SKILLS } from "../skills/registry.js";
-const GOLD = "#D4A017"; // Garuda's golden feathers
-const INDIGO = "#2C3E7B"; // Vishnu's deep blue
+const GOLD = "#D4A017";
+const ORANGE = "#E8740C";
+const INDIGO = "#2C3E7B";
 const GARUDA_MARK = "◆◢";
+const GARUDA_LOGO = [
+    { text: "              /\\              ", color: GOLD },
+    { text: "             /  \\             ", color: GOLD },
+    { text: "            / ◤  ◥\\            ", color: GOLD },
+    { text: "           /  /\\  \\           ", color: GOLD },
+    { text: "     /\\   /  /  \\  \\   /\\     ", color: ORANGE },
+    { text: "    /  \\ /  /    \\  \\ /  \\    ", color: ORANGE },
+    { text: "   / ◤ ◥/  /  ▲▲  \\  \\ ◤ ◥   ", color: ORANGE },
+    { text: "  /  /\\ /  / ◢██◣  \\  \\ /\\  ", color: ORANGE },
+    { text: " /  / / \\  / ████  \\ / \\ \\  ", color: INDIGO },
+    { text: " \\  \\ \\ /  \\ ████  / \\ / /  ", color: INDIGO },
+    { text: "  \\  \\  /    \\███/    \\  \\  / ", color: INDIGO },
+    { text: "   \\  \\/  ▲   ▀▀▀   ▲  \\/   ", color: INDIGO },
+    { text: "    \\ /   █▄▄▄▄▄▄▄▄█   \\ /  ", color: ORANGE },
+    { text: "     V    ▀▀▀▀▀▀▀▀▀▀▀    V   ", color: ORANGE },
+];
 const GARUDA_BANNER = [
     "   ██████╗  █████╗ ██████╗ ██╗   ██╗██████╗  █████╗",
     "  ██╔════╝ ██╔══██╗██╔══██╗██║   ██║██╔══██╗██╔══██╗",
@@ -330,6 +347,7 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
     return (React.createElement(Box, { flexDirection: "column", padding: 1 },
         !workspaceTrusted ? (React.createElement(React.Fragment, null,
             React.createElement(Box, { flexDirection: "column", marginBottom: 1 },
+                GARUDA_LOGO.map((line, i) => React.createElement(Text, { key: `logo-${i}`, color: line.color }, line.text)),
                 GARUDA_BANNER.map((line) => React.createElement(Text, { key: line, color: GOLD, bold: true }, line)),
                 React.createElement(Text, { color: "gray" }, `  ${GARUDA_MARK}  AI coding terminal for teams that ship.`)),
             React.createElement(Box, { flexDirection: "column", borderStyle: "double", borderColor: GOLD, paddingX: 1, marginBottom: 1 },

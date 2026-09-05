@@ -62,7 +62,7 @@ export class McpStdioClient {
         return this.request("initialize", {
             protocolVersion: "2024-11-05",
             capabilities: {},
-            clientInfo: { name: "garuda-code", version: "0.1.0" },
+            clientInfo: { name: "garuda-code", version: "0.1.6" },
         });
     }
     async listTools() {
