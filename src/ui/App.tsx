@@ -119,7 +119,18 @@ export function App({
       }
       return;
     }
-    if (providerWizard) return;
+    if (providerWizard) {
+      if (key.escape) {
+        if (providerWizard.stage === "key") {
+          setProviderWizard({ ...providerWizard, stage: "model" });
+          setInput(providerWizard.model);
+        } else {
+          setProviderWizard(null);
+          setInput("");
+        }
+      }
+      return;
+    }
     if (providerPickerOpen) {
       if (key.escape) {
         setProviderPickerOpen(false);
@@ -406,7 +417,7 @@ export function App({
           <Text color={GOLD} bold>Create provider profile</Text>
           <Text>{providerWizard.label}</Text>
           <Text color="gray">{providerWizard.stage === "model" ? "Default model (Enter to continue)" : "API key (stored in ~/.garuda/config.json)"}</Text>
-          <Box><Text color={INDIGO}>❯ </Text><TextInput value={input} onChange={setInput} onSubmit={handleSubmit} /></Box>
+          <Box><Text color={INDIGO}>❯ </Text><TextInput value={input} onChange={setInput} onSubmit={handleSubmit} mask={providerWizard.stage === "key" ? "*" : undefined} /></Box>
           <Text color="gray">Enter continues · Ctrl+C exits</Text>
         </Box>
       ) : providerPickerOpen ? (
