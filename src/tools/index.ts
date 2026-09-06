@@ -2,6 +2,9 @@ import { bashTool } from "./bash.js";
 import { readFileTool, writeFileTool, editFileTool, listDirTool } from "./fileOps.js";
 import { globTool, grepTool } from "./search.js";
 import { gitTool } from "./git.js";
+import { lintTool, typecheckTool, complexityTool, deadcodeTool, dependencyTool } from "./analysis.js";
+import { threejsAuditTool, shaderAuditTool, reactAuditTool, fastapiAuditTool, perfBudgetTool, a11yAuditTool } from "./frontend3d.js";
+import { codeReviewTool, systemDesignTool, algoAnalysisTool, interviewPrepTool } from "./sdejob.js";
 import type { Tool } from "./types.js";
 
 export const ALL_TOOLS: Tool[] = [
@@ -13,6 +16,21 @@ export const ALL_TOOLS: Tool[] = [
   grepTool,
   gitTool,
   bashTool,
+  lintTool,
+  typecheckTool,
+  complexityTool,
+  deadcodeTool,
+  dependencyTool,
+  threejsAuditTool,
+  shaderAuditTool,
+  reactAuditTool,
+  fastapiAuditTool,
+  perfBudgetTool,
+  a11yAuditTool,
+  codeReviewTool,
+  systemDesignTool,
+  algoAnalysisTool,
+  interviewPrepTool,
 ];
 
 export function getToolByName(name: string): Tool | undefined {

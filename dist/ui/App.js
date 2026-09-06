@@ -1,9 +1,20 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import { AgentLoop } from "../agent/loop.js";
 import { getSlashCommand, SLASH_COMMANDS } from "../commands.js";
-import { BUILTIN_SKILLS } from "../skills/registry.js";
+import { BUILTIN_SKILLS, SKILL_CATEGORIES } from "../skills/registry.js";
+import terminalImage from "terminal-image";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const GARUDA_LOGO_PATHS = [
+    path.join(__dirname, "garuda-logo.png"),
+    path.join(__dirname, "..", "ui", "garuda-logo.png"),
+    path.join(process.cwd(), "src", "ui", "garuda-logo.png"),
+];
 const GOLD = "#D4A017";
 const ORANGE = "#E8740C";
 const INDIGO = "#2C3E7B";
@@ -32,6 +43,7 @@ const GARUDA_BANNER = [
     "  ╚██████╔╝██║  ██║██║  ██║╚██████╔╝██████╔╝██║  ██║",
     "   ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝",
 ];
+const GARUDA_ATTRIBUTION = "Designed and built by Adarsh VinodKumar Singh";
 export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, initialMessages, onHistoryChange, maxHistoryMessages = 40, providerIds = [], providerOptions = [], onProviderChange, onProviderProfileSave, }) {
     const { exit } = useApp();
     const [input, setInput] = useState("");
@@ -55,6 +67,24 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
         .filter((b) => b.type === "text" && Boolean(b.text.trim()))
         .map((b) => ({ kind: m.role === "user" ? "user" : "assistant", text: b.text }))));
     const [pendingConfirm, setPendingConfirm] = useState(null);
+    const [garudaImage, setGarudaImage] = useState(null);
+    useEffect(() => {
+        async function loadImage() {
+            for (const logoPath of GARUDA_LOGO_PATHS) {
+                try {
+                    await fs.access(logoPath);
+                    const image = await terminalImage.file(logoPath, { width: 40, height: 20 });
+                    setGarudaImage(image);
+                    return;
+                }
+                catch {
+                    continue;
+                }
+            }
+            setGarudaImage(null);
+        }
+        void loadImage();
+    }, []);
     const [agent] = useState(() => new AgentLoop({
         provider,
         cwd,
@@ -276,14 +306,28 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
                 return;
             }
             if (command.name === "skills") {
-                setLog((l) => [...l, { kind: "system", text: BUILTIN_SKILLS.map((skill) => `/${skill.id} - ${skill.description}`).join("\n") }]);
+                const grouped = BUILTIN_SKILLS.reduce((acc, skill) => {
+                    const cat = skill.category || "other";
+                    if (!acc[cat])
+                        acc[cat] = [];
+                    acc[cat].push(skill);
+                    return acc;
+                }, {});
+                const lines = [];
+                for (const [cat, skills] of Object.entries(grouped)) {
+                    lines.push(`\n${SKILL_CATEGORIES[cat] ?? cat}:`);
+                    for (const skill of skills) {
+                        lines.push(`  /${skill.id.padEnd(14)} ${skill.description}`);
+                    }
+                }
+                setLog((l) => [...l, { kind: "system", text: lines.join("\n") }]);
                 return;
             }
             if (command.name === "tools") {
                 setLog((l) => [...l, { kind: "system", text: (tools ?? []).map((tool) => tool.definition.name).join(", ") || "No tools loaded." }]);
                 return;
             }
-            if (["debug", "security", "performance", "refactor", "test", "document"].includes(command.name)) {
+            if (["debug", "security", "performance", "refactor", "test", "document", "lint", "typecheck", "complexity", "deadcode", "dependency", "arch", "migrate", "design", "decompose", "ci", "docker", "deploy", "monitor", "sql", "schema", "cache", "api", "auth", "js", "ts", "react", "nextjs", "css", "tailwind", "state", "fetch", "threejs", "webgl", "r3f", "drei", "glsl", "gltf", "3d-perf", "postfx", "physics3d", "3d-anim", "gsap", "framer", "css-anim", "scroll", "page-trans", "lottie", "easing", "designsys", "typography", "color", "responsive", "a11y", "micro", "figma", "ux-flow", "skeleton", "python", "fastapi", "pyasync", "pyauth", "pydb", "pyapi", "pyval", "pytest", "pydeploy", "git", "testing", "cicd", "perf", "sec", "observe", "arch-full", "docs", "dsa", "sysdesign", "oop", "dbdesign", "networking", "os-concepts", "cloud", "caching-strat", "msg-queue", "search-eng", "ml-basics", "behavioral", "code-review", "debug-strat", "refactor-pro", "product-sense", "estimation", "leetcode-hard", "interview-prep", "resume-build"].includes(command.name)) {
                 setLog((l) => [...l, { kind: "system", text: `Activating ${command.name} skill...` }]);
                 setBusy(true);
                 try {
@@ -302,7 +346,7 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
                 }
                 return;
             }
-            if (["plan", "review", "security-review", "diff", "doctor", "diagnostics"].includes(command.name)) {
+            if (["plan", "review", "security-review", "diff", "doctor", "diagnostics", "threejs-audit", "shader-audit", "react-audit", "fastapi-audit", "perf-budget", "a11y-audit", "code-review", "system-design", "algo-analysis", "interview-prep"].includes(command.name)) {
                 setLog((l) => [...l, { kind: "system", text: `Running ${command.name} workflow...` }]);
                 setBusy(true);
                 try {
@@ -347,9 +391,10 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
     return (React.createElement(Box, { flexDirection: "column", padding: 1 },
         !workspaceTrusted ? (React.createElement(React.Fragment, null,
             React.createElement(Box, { flexDirection: "column", marginBottom: 1 },
-                GARUDA_LOGO.map((line, i) => React.createElement(Text, { key: `logo-${i}`, color: line.color }, line.text)),
+                garudaImage ? (React.createElement(Text, null, garudaImage)) : (GARUDA_LOGO.map((line, i) => React.createElement(Text, { key: `logo-${i}`, color: line.color }, line.text))),
                 GARUDA_BANNER.map((line) => React.createElement(Text, { key: line, color: GOLD, bold: true }, line)),
-                React.createElement(Text, { color: "gray" }, `  ${GARUDA_MARK}  AI coding terminal for teams that ship.`)),
+                React.createElement(Text, { color: "gray" }, `  ${GARUDA_MARK}  AI coding terminal for teams that ship.`),
+                React.createElement(Text, { color: INDIGO, bold: true }, `  ${GARUDA_ATTRIBUTION}`)),
             React.createElement(Box, { flexDirection: "column", borderStyle: "double", borderColor: GOLD, paddingX: 1, marginBottom: 1 },
                 React.createElement(Text, { color: GOLD, bold: true }, "GARUDA SESSION"),
                 React.createElement(Text, null,
@@ -377,7 +422,8 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
                 activeModel,
                 " \u00B7 ",
                 cwd,
-                sessionId ? ` · session ${sessionId}` : ""))),
+                sessionId ? ` · session ${sessionId}` : ""),
+            React.createElement(Text, { color: "gray" }, " \u00B7 by Adarsh VinodKumar Singh"))),
         workspaceTrusted && React.createElement(Box, { flexDirection: "column", marginBottom: 1 }, log.slice(-200).map((entry, i) => (React.createElement(Box, { key: i, marginBottom: entry.kind === "assistant" ? 1 : 0 },
             entry.kind === "user" && React.createElement(Text, { color: "white" },
                 "> ",

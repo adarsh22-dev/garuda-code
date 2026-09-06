@@ -43,7 +43,7 @@ const program = new Command();
 
 program
   .name("garuda")
-  .description("Garuda Code — a multi-provider, tool-using AI coding agent for the terminal.")
+  .description("Garuda Code — a multi-provider, tool-using AI coding agent for the terminal. Designed and built by Adarsh VinodKumar Singh.")
   .version(packageVersion);
 
 async function resolveProviderAndModel(opts: { provider?: string; model?: string }) {
