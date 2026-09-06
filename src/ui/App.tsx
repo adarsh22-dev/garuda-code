@@ -8,36 +8,7 @@ import { getSlashCommand, SLASH_COMMANDS } from "../commands.js";
 import { BUILTIN_SKILLS, SKILL_CATEGORIES } from "../skills/registry.js";
 import { FIRST_RUN_GUIDE } from "../guide.js";
 const GOLD = "#D4A017";
-const ORANGE = "#E8740C";
 const INDIGO = "#2C3E7B";
-const GARUDA_MARK = "◆◢";
-
-const GARUDA_LOGO: { text: string; color: string }[] = [
-  { text: "              /\\              ", color: GOLD },
-  { text: "             /  \\             ", color: GOLD },
-  { text: "            / ◤  ◥\\            ", color: GOLD },
-  { text: "           /  /\\  \\           ", color: GOLD },
-  { text: "     /\\   /  /  \\  \\   /\\     ", color: ORANGE },
-  { text: "    /  \\ /  /    \\  \\ /  \\    ", color: ORANGE },
-  { text: "   / ◤ ◥/  /  ▲▲  \\  \\ ◤ ◥   ", color: ORANGE },
-  { text: "  /  /\\ /  / ◢██◣  \\  \\ /\\  ", color: ORANGE },
-  { text: " /  / / \\  / ████  \\ / \\ \\  ", color: INDIGO },
-  { text: " \\  \\ \\ /  \\ ████  / \\ / /  ", color: INDIGO },
-  { text: "  \\  \\  /    \\███/    \\  \\  / ", color: INDIGO },
-  { text: "   \\  \\/  ▲   ▀▀▀   ▲  \\/   ", color: INDIGO },
-  { text: "    \\ /   █▄▄▄▄▄▄▄▄█   \\ /  ", color: ORANGE },
-  { text: "     V    ▀▀▀▀▀▀▀▀▀▀▀    V   ", color: ORANGE },
-];
-
-const GARUDA_BANNER = [
-  "   ██████╗  █████╗ ██████╗ ██╗   ██╗██████╗  █████╗",
-  "  ██╔════╝ ██╔══██╗██╔══██╗██║   ██║██╔══██╗██╔══██╗",
-  "  ██║  ███╗███████║██████╔╝██║   ██║██║  ██║███████║",
-  "  ██║   ██║██╔══██║██╔══██╗██║   ██║██║  ██║██╔══██║",
-  "  ╚██████╔╝██║  ██║██║  ██║╚██████╔╝██████╔╝██║  ██║",
-  "   ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝",
-];
-
 const GARUDA_ATTRIBUTION = "Designed and built by Adarsh VinodKumar Singh";
 
 interface LogEntry {
@@ -418,9 +389,8 @@ export function App({
       {!workspaceTrusted ? (
         <>
           <Box flexDirection="column" marginBottom={1}>
-            {GARUDA_LOGO.map((line, i) => <Text key={`logo-${i}`} color={line.color}>{line.text}</Text>)}
-            {GARUDA_BANNER.map((line) => <Text key={line} color={GOLD} bold>{line}</Text>)}
-            <Text color="gray">{`  ${GARUDA_MARK}  AI coding terminal for teams that ship.`}</Text>
+            <Text color={GOLD} bold>GARUDA CODE</Text>
+            <Text color="gray">AI coding terminal for teams that ship.</Text>
             <Text color={INDIGO} bold>{`  ${GARUDA_ATTRIBUTION}`}</Text>
           </Box>
           <Box flexDirection="column" borderStyle="double" borderColor={GOLD} paddingX={1} marginBottom={1}>
@@ -439,7 +409,7 @@ export function App({
         </>
       ) : (
         <Box borderStyle="round" borderColor={GOLD} paddingX={1} marginBottom={1}>
-          <Text color={GOLD} bold>{GARUDA_MARK} GARUDA CODE{"  "}</Text>
+          <Text color={GOLD} bold>GARUDA CODE{"  "}</Text>
           <Text color={INDIGO}>
             {activeProviderId}:{activeModel} · {cwd}
             {sessionId ? ` · session ${sessionId}` : ""}
