@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 const DEFAULT_CONFIG = {
     defaultProvider: "anthropic",
+    updateChecks: true,
     maxHistoryMessages: 40,
 };
 function configDir() {

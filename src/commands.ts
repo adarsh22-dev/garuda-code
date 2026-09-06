@@ -11,6 +11,7 @@ const slashCommandRows = [
   ["clear", "Clear the visible conversation and model history", true],
   ["compact", "Trim old history to reduce token usage", true],
   ["help", "List Garuda slash commands", true],
+  ["guide", "Show the first-time installation and provider guide", true],
   ["status", "Show the active provider, model, and context estimate", true],
   ["context", "Show the current context estimate", true],
   ["skills", "List bundled coding skills by category", true],

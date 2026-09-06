@@ -15,6 +15,7 @@ import { createSession, loadSession, saveSession, listSessions } from "./session
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { FIRST_RUN_GUIDE } from "./guide.js";
 const packageVersion = JSON.parse(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf-8")).version;
 async function resolveTools() {
     const cfg = await loadConfig();
@@ -39,6 +40,24 @@ program
     .name("garuda")
     .description("Garuda Code — a multi-provider, tool-using AI coding agent for the terminal. Designed and built by Adarsh VinodKumar Singh.")
     .version(packageVersion);
+program
+    .command("guide")
+    .description("Show the first-time installation, provider, and TUI guide.")
+    .action(() => console.log(FIRST_RUN_GUIDE));
+program
+    .command("updates <state>")
+    .description("Enable or disable startup update notifications.")
+    .action(async (state) => {
+    if (state !== "on" && state !== "off") {
+        console.error("Usage: garuda updates on|off");
+        process.exitCode = 1;
+        return;
+    }
+    const cfg = await loadConfig();
+    cfg.updateChecks = state === "on";
+    await saveConfig(cfg);
+    console.log(`Startup update notifications ${cfg.updateChecks ? "enabled" : "disabled"}.`);
+});
 async function resolveProviderAndModel(opts) {
     const cfg = await loadConfig();
     const providerId = opts.provider ?? cfg.defaultProvider;
@@ -58,6 +77,28 @@ async function resolveProviderAndModel(opts) {
 async function resolveProviderIds() {
     const cfg = await loadConfig();
     return [...PROVIDER_PRESETS.map((preset) => preset.id), ...(cfg.customProviders ?? []).map((preset) => preset.id)];
+}
+async function checkForUpdate(enabled) {
+    if (!enabled)
+        return undefined;
+    try {
+        const response = await fetch("https://registry.npmjs.org/garuda-code/latest", {
+            signal: AbortSignal.timeout(1500),
+        });
+        if (!response.ok)
+            return undefined;
+        const latest = (await response.json()).version;
+        if (!latest || latest === packageVersion)
+            return undefined;
+        const currentParts = packageVersion.split(".").map(Number);
+        const latestParts = latest.split(".").map(Number);
+        const newer = latestParts.some((part, index) => part > (currentParts[index] ?? 0)) &&
+            latestParts.every((part, index) => index === 0 || part >= (currentParts[index] ?? 0));
+        return newer ? `Update available: Garuda ${packageVersion} -> ${latest}. Run: npm install -g garuda-code@latest` : undefined;
+    }
+    catch {
+        return undefined;
+    }
 }
 async function resolveProviderOptions() {
     const cfg = await loadConfig();
@@ -99,6 +140,8 @@ program
         session = await createSession(cwd, providerId);
     }
     await saveSession(session);
+    const cfg = await loadConfig();
+    const updateNotice = await checkForUpdate(cfg.updateChecks !== false);
     process.on("exit", closeAll);
     render(React.createElement(App, {
         provider,
@@ -127,6 +170,7 @@ program
             await saveConfig(cfg);
             return resolveProviderAndModel({ provider: nextProviderId, model: nextModel });
         },
+        updateNotice,
         onHistoryChange: (messages) => {
             session.messages = messages;
             void saveSession(session);

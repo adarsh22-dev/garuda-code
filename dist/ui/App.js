@@ -4,17 +4,7 @@ import TextInput from "ink-text-input";
 import { AgentLoop } from "../agent/loop.js";
 import { getSlashCommand, SLASH_COMMANDS } from "../commands.js";
 import { BUILTIN_SKILLS, SKILL_CATEGORIES } from "../skills/registry.js";
-import terminalImage from "terminal-image";
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const GARUDA_LOGO_PATHS = [
-    path.join(__dirname, "garuda-logo.png"),
-    path.join(__dirname, "..", "ui", "garuda-logo.png"),
-    path.join(process.cwd(), "src", "ui", "garuda-logo.png"),
-];
+import { FIRST_RUN_GUIDE } from "../guide.js";
 const GOLD = "#D4A017";
 const ORANGE = "#E8740C";
 const INDIGO = "#2C3E7B";
@@ -44,7 +34,7 @@ const GARUDA_BANNER = [
     "   ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝",
 ];
 const GARUDA_ATTRIBUTION = "Designed and built by Adarsh VinodKumar Singh";
-export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, initialMessages, onHistoryChange, maxHistoryMessages = 40, providerIds = [], providerOptions = [], onProviderChange, onProviderProfileSave, }) {
+export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, initialMessages, onHistoryChange, maxHistoryMessages = 40, providerIds = [], providerOptions = [], onProviderChange, onProviderProfileSave, updateNotice, }) {
     const { exit } = useApp();
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
@@ -66,25 +56,11 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
         .flatMap((m) => m.content
         .filter((b) => b.type === "text" && Boolean(b.text.trim()))
         .map((b) => ({ kind: m.role === "user" ? "user" : "assistant", text: b.text }))));
-    const [pendingConfirm, setPendingConfirm] = useState(null);
-    const [garudaImage, setGarudaImage] = useState(null);
     useEffect(() => {
-        async function loadImage() {
-            for (const logoPath of GARUDA_LOGO_PATHS) {
-                try {
-                    await fs.access(logoPath);
-                    const image = await terminalImage.file(logoPath, { width: 40, height: 20 });
-                    setGarudaImage(image);
-                    return;
-                }
-                catch {
-                    continue;
-                }
-            }
-            setGarudaImage(null);
-        }
-        void loadImage();
-    }, []);
+        if (updateNotice)
+            setLog((items) => [...items, { kind: "system", text: updateNotice }]);
+    }, [updateNotice]);
+    const [pendingConfirm, setPendingConfirm] = useState(null);
     const [agent] = useState(() => new AgentLoop({
         provider,
         cwd,
@@ -244,6 +220,10 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
                 setLog((l) => [...l, { kind: "system", text: SLASH_COMMANDS.map((item) => `/${item.name} - ${item.description}`).join("\n") }]);
                 return;
             }
+            if (command.name === "guide") {
+                setLog((l) => [...l, { kind: "system", text: FIRST_RUN_GUIDE }]);
+                return;
+            }
             if (command.name === "status" || command.name === "context") {
                 const current = agent.getUsage();
                 setLog((l) => [...l, { kind: "system", text: `${activeProviderId}:${activeModel} | context ~${current.estimatedContextTokens} tokens | input ${current.inputTokens} | output ${current.outputTokens}` }]);
@@ -391,7 +371,7 @@ export function App({ provider, providerId, model, cwd, yolo, tools, sessionId, 
     return (React.createElement(Box, { flexDirection: "column", padding: 1 },
         !workspaceTrusted ? (React.createElement(React.Fragment, null,
             React.createElement(Box, { flexDirection: "column", marginBottom: 1 },
-                garudaImage ? (React.createElement(Text, null, garudaImage)) : (GARUDA_LOGO.map((line, i) => React.createElement(Text, { key: `logo-${i}`, color: line.color }, line.text))),
+                GARUDA_LOGO.map((line, i) => React.createElement(Text, { key: `logo-${i}`, color: line.color }, line.text)),
                 GARUDA_BANNER.map((line) => React.createElement(Text, { key: line, color: GOLD, bold: true }, line)),
                 React.createElement(Text, { color: "gray" }, `  ${GARUDA_MARK}  AI coding terminal for teams that ship.`),
                 React.createElement(Text, { color: INDIGO, bold: true }, `  ${GARUDA_ATTRIBUTION}`)),

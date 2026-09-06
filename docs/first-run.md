@@ -23,6 +23,12 @@ npm link
 
 Requires Node.js 18 or newer.
 
+For a one-screen setup summary at any time:
+
+```bash
+garuda guide
+```
+
 ## Configure a provider
 
 Run the guided setup wizard. Press Enter to skip providers you do not use:
@@ -73,6 +79,8 @@ garuda chat
 When `garuda chat` starts, Garuda shows its original banner and the active provider, model, and workspace. Confirm with `Y` only for a folder you created or trust; press `N` or `Esc` to exit. This gate appears before file tools or model prompts are enabled.
 
 After accepting the workspace, type `/` to open the command palette. Type more letters to filter, use Up/Down to select, and Tab to complete. `/provider` opens a provider manager where configured profiles are marked and Enter switches the active session. Useful commands include `/help`, `/provider`, `/models`, `/plan`, `/review`, `/compact`, and `/exit`.
+
+Use `/guide` inside the TUI for the same setup page. Garuda checks npm for updates at startup with a short timeout; disable or re-enable that notification with `garuda updates off` or `garuda updates on`.
 
 Use `@` file references and `!` shell commands as ordinary prompt text for now; dedicated file-reference and shell-prefix parsing are planned roadmap features.
 

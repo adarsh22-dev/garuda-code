@@ -6,7 +6,7 @@ Common short aliases are supported: `/p` for `/provider`, `/m` for `/model`, `/h
 
 ## Session and context
 
-`/clear`, `/compact`, `/context`, `/status`, `/sessions`, `/resume`, `/export`, `/copy`, `/continue`, `/session`, `/files`, `/ctx`, `/cost`, `/request-size`, `/cache-stats`, `/exit`
+`/clear`, `/compact`, `/context`, `/status`, `/sessions`, `/resume`, `/export`, `/copy`, `/continue`, `/session`, `/files`, `/ctx`, `/cost`, `/request-size`, `/cache-stats`, `/guide`, `/exit`
 
 ## Providers and models
 

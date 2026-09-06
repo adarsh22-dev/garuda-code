@@ -6,19 +6,7 @@ import type { Provider, Message } from "../providers/types.js";
 import type { Tool } from "../tools/types.js";
 import { getSlashCommand, SLASH_COMMANDS } from "../commands.js";
 import { BUILTIN_SKILLS, SKILL_CATEGORIES } from "../skills/registry.js";
-import terminalImage from "terminal-image";
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const GARUDA_LOGO_PATHS = [
-  path.join(__dirname, "garuda-logo.png"),
-  path.join(__dirname, "..", "ui", "garuda-logo.png"),
-  path.join(process.cwd(), "src", "ui", "garuda-logo.png"),
-];
-
+import { FIRST_RUN_GUIDE } from "../guide.js";
 const GOLD = "#D4A017";
 const ORANGE = "#E8740C";
 const INDIGO = "#2C3E7B";
@@ -79,6 +67,7 @@ export function App({
   providerOptions = [],
   onProviderChange,
   onProviderProfileSave,
+  updateNotice,
 }: {
   provider: Provider;
   providerId: string;
@@ -94,6 +83,7 @@ export function App({
   providerOptions?: ProviderOption[];
   onProviderChange?: (providerId: string, model?: string) => Promise<{ provider: Provider; providerId: string; model: string }>;
   onProviderProfileSave?: (providerId: string, model: string, apiKey: string) => Promise<{ provider: Provider; providerId: string; model: string }>;
+  updateNotice?: string;
 }) {
   const { exit } = useApp();
   const [input, setInput] = useState("");
@@ -121,29 +111,14 @@ export function App({
             .map((b) => ({ kind: m.role === "user" ? "user" : "assistant", text: b.text }))
         )
   );
+
+  useEffect(() => {
+    if (updateNotice) setLog((items) => [...items, { kind: "system", text: updateNotice }]);
+  }, [updateNotice]);
   const [pendingConfirm, setPendingConfirm] = useState<{
     message: string;
     resolve: (v: boolean) => void;
   } | null>(null);
-  const [garudaImage, setGarudaImage] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function loadImage() {
-      for (const logoPath of GARUDA_LOGO_PATHS) {
-        try {
-          await fs.access(logoPath);
-          const image = await terminalImage.file(logoPath, { width: 40, height: 20 });
-          setGarudaImage(image);
-          return;
-        } catch {
-          continue;
-        }
-      }
-      setGarudaImage(null);
-    }
-    void loadImage();
-  }, []);
-
   const [agent] = useState(
     () =>
       new AgentLoop({
@@ -296,6 +271,10 @@ export function App({
           setLog((l) => [...l, { kind: "system", text: SLASH_COMMANDS.map((item) => `/${item.name} - ${item.description}`).join("\n") }]);
           return;
         }
+        if (command.name === "guide") {
+          setLog((l) => [...l, { kind: "system", text: FIRST_RUN_GUIDE }]);
+          return;
+        }
         if (command.name === "status" || command.name === "context") {
           const current = agent.getUsage();
           setLog((l) => [...l, { kind: "system", text: `${activeProviderId}:${activeModel} | context ~${current.estimatedContextTokens} tokens | input ${current.inputTokens} | output ${current.outputTokens}` }]);
@@ -439,11 +418,7 @@ export function App({
       {!workspaceTrusted ? (
         <>
           <Box flexDirection="column" marginBottom={1}>
-            {garudaImage ? (
-              <Text>{garudaImage}</Text>
-            ) : (
-              GARUDA_LOGO.map((line, i) => <Text key={`logo-${i}`} color={line.color}>{line.text}</Text>)
-            )}
+            {GARUDA_LOGO.map((line, i) => <Text key={`logo-${i}`} color={line.color}>{line.text}</Text>)}
             {GARUDA_BANNER.map((line) => <Text key={line} color={GOLD} bold>{line}</Text>)}
             <Text color="gray">{`  ${GARUDA_MARK}  AI coding terminal for teams that ship.`}</Text>
             <Text color={INDIGO} bold>{`  ${GARUDA_ATTRIBUTION}`}</Text>

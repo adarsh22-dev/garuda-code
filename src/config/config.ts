@@ -4,6 +4,7 @@ import path from "node:path";
 
 export interface GarudaConfig {
   defaultProvider: string;
+  updateChecks?: boolean;
   maxHistoryMessages?: number;
   providerOverrides?: Record<string, { model?: string; baseUrl?: string; apiKey?: string }>;
   customProviders?: Array<{
@@ -23,6 +24,7 @@ export interface GarudaConfig {
 
 const DEFAULT_CONFIG: GarudaConfig = {
   defaultProvider: "anthropic",
+  updateChecks: true,
   maxHistoryMessages: 40,
 };
 
